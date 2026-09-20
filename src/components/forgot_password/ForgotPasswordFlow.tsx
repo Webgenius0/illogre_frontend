@@ -62,16 +62,52 @@ export default function ForgotPasswordFlow() {
   };
 
   const handleOtpChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return;
+    const digits = value.replace(/\D/g, "");
+    if (!digits) {
+      const newOtp = [...otp];
+      newOtp[index] = "";
+      setOtp(newOtp);
+      return;
+    }
+
+    if (digits.length > 1) {
+      const newOtp = [...otp];
+      for (let i = 0; i < digits.length && index + i < 4; i++) {
+        newOtp[index + i] = digits[i];
+      }
+      setOtp(newOtp);
+      const nextFocusIndex = Math.min(index + digits.length, 3);
+      otpRefs[nextFocusIndex]?.current?.focus();
+    } else {
+      const newOtp = [...otp];
+      newOtp[index] = digits;
+      setOtp(newOtp);
+      if (index < 3) otpRefs[index + 1]?.current?.focus();
+    }
+  };
+
+  const handleOtpPaste = (
+    index: number,
+    e: React.ClipboardEvent<HTMLInputElement>,
+  ) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").trim();
+    const digits = pastedData.replace(/\D/g, "");
+    if (!digits) return;
+
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1);
+    for (let i = 0; i < digits.length && index + i < 4; i++) {
+      newOtp[index + i] = digits[i];
+    }
     setOtp(newOtp);
-    if (value && index < 3) otpRefs[index + 1].current?.focus();
+
+    const nextFocusIndex = Math.min(index + digits.length, 3);
+    otpRefs[nextFocusIndex]?.current?.focus();
   };
 
   const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      otpRefs[index - 1].current?.focus();
+      otpRefs[index - 1]?.current?.focus();
     }
   };
 
@@ -180,6 +216,7 @@ export default function ForgotPasswordFlow() {
                   value={digit}
                   onChange={(e) => handleOtpChange(i, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                  onPaste={(e) => handleOtpPaste(i, e)}
                   placeholder="-"
                   className="size-14 text-center text-2xl font-semibold bg-white/30 border border-white/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-gray-400/50 shadow-sm"
                 />

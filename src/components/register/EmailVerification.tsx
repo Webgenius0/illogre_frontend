@@ -32,16 +32,50 @@ export default function EmailVerification() {
   }, [timer]);
 
   const handleChange = (index: number, value: string) => {
-    if (!/^\d*$/.test(value)) return; // Only allow digits
+    const digits = value.replace(/\D/g, "");
+    if (!digits) {
+      const newOtp = [...otp];
+      newOtp[index] = "";
+      setOtp(newOtp);
+      return;
+    }
+
+    if (digits.length > 1) {
+      const newOtp = [...otp];
+      for (let i = 0; i < digits.length && index + i < 4; i++) {
+        newOtp[index + i] = digits[i];
+      }
+      setOtp(newOtp);
+      const nextFocusIndex = Math.min(index + digits.length, 3);
+      inputRefs[nextFocusIndex]?.current?.focus();
+    } else {
+      const newOtp = [...otp];
+      newOtp[index] = digits;
+      setOtp(newOtp);
+
+      if (index < 3) {
+        inputRefs[index + 1]?.current?.focus();
+      }
+    }
+  };
+
+  const handlePaste = (
+    index: number,
+    e: React.ClipboardEvent<HTMLInputElement>,
+  ) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").trim();
+    const digits = pastedData.replace(/\D/g, "");
+    if (!digits) return;
 
     const newOtp = [...otp];
-    newOtp[index] = value.slice(-1); // Only take last character
+    for (let i = 0; i < digits.length && index + i < 4; i++) {
+      newOtp[index + i] = digits[i];
+    }
     setOtp(newOtp);
 
-    // If a digit is entered, move to the next field
-    if (value && index < 3) {
-      inputRefs[index + 1].current?.focus();
-    }
+    const nextFocusIndex = Math.min(index + digits.length, 3);
+    inputRefs[nextFocusIndex]?.current?.focus();
   };
 
   const handleKeyDown = (
@@ -50,7 +84,7 @@ export default function EmailVerification() {
   ) => {
     // Move to previous field on backspace if current field is empty
     if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs[index - 1].current?.focus();
+      inputRefs[index - 1]?.current?.focus();
     }
   };
 
@@ -105,6 +139,7 @@ export default function EmailVerification() {
                   value={digit}
                   onChange={(e) => handleChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
+                  onPaste={(e) => handlePaste(index, e)}
                   placeholder="-"
                   className="size-14 text-center text-2xl font-semibold bg-white/30 border border-white/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-gray-400/50 shadow-sm"
                 />
