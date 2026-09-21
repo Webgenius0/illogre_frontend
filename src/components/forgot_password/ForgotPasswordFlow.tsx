@@ -15,7 +15,7 @@ import { Alert, AlertTitle } from "../ui/alert";
 export default function ForgotPasswordFlow() {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [showPassword, setShowPassword] = useState(false);
   const [timer, setTimer] = useState(60);
   const [token, setToken] = useState("");
@@ -36,6 +36,8 @@ export default function ForgotPasswordFlow() {
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
   ];
 
   // Timer for OTP resend
@@ -46,15 +48,28 @@ export default function ForgotPasswordFlow() {
     }
   }, [step, timer]);
 
+  const [devOtp, setDevOtp] = useState("");
+
+  useEffect(() => {
+    if (step === 2 && devOtp) {
+      toast.success(
+        `We've sent a 6-digit verification code to your email. (OTP: ${devOtp})`
+      );
+    }
+  }, [step, devOtp]);
+
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email) {
       forgotPassword(
         { email },
         {
-          onSuccess: () => {
+          onSuccess: (data: any) => {
             setStep(2);
             setTimer(60);
+            if (data?.otp || data?.data?.otp) {
+              setDevOtp(data?.otp || data?.data?.otp);
+            }
           },
         },
       );
@@ -72,17 +87,17 @@ export default function ForgotPasswordFlow() {
 
     if (digits.length > 1) {
       const newOtp = [...otp];
-      for (let i = 0; i < digits.length && index + i < 4; i++) {
+      for (let i = 0; i < digits.length && index + i < 6; i++) {
         newOtp[index + i] = digits[i];
       }
       setOtp(newOtp);
-      const nextFocusIndex = Math.min(index + digits.length, 3);
+      const nextFocusIndex = Math.min(index + digits.length, 5);
       otpRefs[nextFocusIndex]?.current?.focus();
     } else {
       const newOtp = [...otp];
       newOtp[index] = digits;
       setOtp(newOtp);
-      if (index < 3) otpRefs[index + 1]?.current?.focus();
+      if (index < 5) otpRefs[index + 1]?.current?.focus();
     }
   };
 
@@ -96,12 +111,12 @@ export default function ForgotPasswordFlow() {
     if (!digits) return;
 
     const newOtp = [...otp];
-    for (let i = 0; i < digits.length && index + i < 4; i++) {
+    for (let i = 0; i < digits.length && index + i < 6; i++) {
       newOtp[index + i] = digits[i];
     }
     setOtp(newOtp);
 
-    const nextFocusIndex = Math.min(index + digits.length, 3);
+    const nextFocusIndex = Math.min(index + digits.length, 5);
     otpRefs[nextFocusIndex]?.current?.focus();
   };
 
@@ -113,7 +128,7 @@ export default function ForgotPasswordFlow() {
 
   const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.every((d) => d)) {
+    if (otp.every((d) => d) && otp.join("").length === 6) {
       verifyOtp(
         { email, otp: otp.join("") },
         {
@@ -202,11 +217,11 @@ export default function ForgotPasswordFlow() {
           </div>
           <h2 className="text-2xl font-semibold mb-2">Verify Code</h2>
           <p className="text-[#A0A0A0] text-base mb-10">
-            We've sent a code to{" "}
+            We've sent a 6-digit code to{" "}
             <span className="text-foreground font-semibold">{email}</span>
           </p>
           <form onSubmit={handleOtpSubmit} className="space-y-10">
-            <div className="flex justify-center gap-2 sm:gap-3">
+            <div className="flex justify-center gap-1.5 sm:gap-3">
               {otp.map((digit, i) => (
                 <input
                   key={i}
@@ -218,7 +233,7 @@ export default function ForgotPasswordFlow() {
                   onKeyDown={(e) => handleOtpKeyDown(i, e)}
                   onPaste={(e) => handleOtpPaste(i, e)}
                   placeholder="-"
-                  className="size-14 text-center text-2xl font-semibold bg-white/30 border border-white/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-gray-400/50 shadow-sm"
+                  className="size-11 sm:size-14 text-center text-xl sm:text-2xl font-semibold bg-white/30 border border-white/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-gray-400/50 shadow-sm"
                 />
               ))}
             </div>

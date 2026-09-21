@@ -3,6 +3,7 @@
 import logo from "@/assets/Logo.svg";
 import DownArrowSvg from "@/components/svg/DownArrowSvg";
 import Image from "next/image";
+import Link from "next/link";
 import rodro from "../assets/boy.png";
 import {
   DropdownMenu,
@@ -43,7 +44,9 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         >
           <Menu className="size-5 text-[#162943]" />
         </button>
-        <Image src={logo} alt="Logo" className="w-16 lg:w-22" />
+        <Link href="/">
+          <Image src={logo} alt="Logo" className="w-16 lg:w-22 cursor-pointer" />
+        </Link>
       </div>
 
       <div className="flex items-center gap-2 lg:gap-4">

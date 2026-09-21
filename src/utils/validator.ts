@@ -36,5 +36,5 @@ export const validators = {
   terms: (v: boolean) =>
     !v ? "You must agree to the terms and conditions" : true,
   otp: (otp: string[]) =>
-    otp.join("").length < 4 ? "Please enter the complete 4-digit code" : true,
+    otp.join("").length < 6 ? "Please enter the complete 6-digit code" : true,
 };

@@ -157,8 +157,11 @@ export const useRegister = () => {
     endpoint: "/auth/register",
     options: {
       onSuccess: (data, payload) => {
-        toast.success(data?.data?.message || "Registration successful");
-        router.push(`/auth/register/email_verification?email=${payload.email}`);
+        const otp = data?.otp || data?.data?.otp;
+        const message = data?.data?.message || "Registration successful";
+        toast.success(otp ? `${message} (OTP: ${otp})` : message);
+        const devOtp = otp ? `&otp=${otp}` : "";
+        router.push(`/auth/register/email_verification?email=${payload.email}${devOtp}`);
       },
       onError: (error) => {
         // 'error' is now typed as AxiosError
@@ -196,9 +199,13 @@ export const useRegisterEmailVerification = () => {
           }),
         );
       },
-      onError: (error) => {
-        // 'error' is now typed as AxiosError
-        if (error?.code === "ERR_NETWORK") {
+      onError: (error: any) => {
+        if (error?.response?.status === 429) {
+          toast.error(
+            error?.response?.data?.message ||
+              "Too many incorrect attempts. Please try again later.",
+          );
+        } else if (error?.code === "ERR_NETWORK") {
           toast.error("Please check your network connection");
         } else {
           const errorMessage =
@@ -215,30 +222,23 @@ export const useRegisterEmailVerification = () => {
 
 // register resend otp verification
 export const useRegisterResendOtp = () => {
-  const router = useRouter();
-  const dispatch = useDispatch();
-
   return useApiMutation({
     key: "register-email-resend-otp",
     method: "post",
     endpoint: "/auth/resend-otp",
     options: {
       onSuccess: (data) => {
-        console.log(data);
-
-        // router.push(`/auth/register/email_verification?email=${payload.email}`);
-        // dispatch(
-        //   setAuth({
-        //     user: data?.data,
-        //     token: data?.token,
-        //     remember: true,
-        //   }),
-        // );
-        // router.push("/");
+        const otp = data?.otp || data?.data?.otp;
+        const message = data?.message || "OTP code resent successfully";
+        toast.success(otp ? `${message} (OTP: ${otp})` : message);
       },
-      onError: (error) => {
-        // 'error' is now typed as AxiosError
-        if (error?.code === "ERR_NETWORK") {
+      onError: (error: any) => {
+        if (error?.response?.status === 429) {
+          toast.error(
+            error?.response?.data?.message ||
+              "Too many resend attempts. Please try again later.",
+          );
+        } else if (error?.code === "ERR_NETWORK") {
           toast.error("Please check your network connection");
         } else {
           const errorMessage =
@@ -247,7 +247,7 @@ export const useRegisterResendOtp = () => {
             "Something went wrong!";
           toast.error(errorMessage);
         }
-        console.error("Registration error:", error);
+        console.error("Resend OTP error:", error);
       },
     },
   });
@@ -285,12 +285,17 @@ export const useForgotPassword = () => {
     endpoint: "/auth/forgot-password",
     options: {
       onSuccess: (data) => {
-        console.log(data);
-
-        toast.success(data?.message || "OTP sent to your email");
+        const otp = data?.otp || data?.data?.otp;
+        const message = data?.message || "OTP sent to your email";
+        toast.success(otp ? `${message} (OTP: ${otp})` : message);
       },
       onError: (error: any) => {
-        if (error?.code === "ERR_NETWORK") {
+        if (error?.response?.status === 429) {
+          toast.error(
+            error?.response?.data?.message ||
+              "Too many requests. Please try again later.",
+          );
+        } else if (error?.code === "ERR_NETWORK") {
           toast.error("Please check your network connection");
         } else {
           const errorMessage =
@@ -315,7 +320,12 @@ export const useVerifyOtp = () => {
         toast.success(data?.message || "OTP verified successfully");
       },
       onError: (error: any) => {
-        if (error?.code === "ERR_NETWORK") {
+        if (error?.response?.status === 429) {
+          toast.error(
+            error?.response?.data?.message ||
+              "Too many incorrect attempts. Please try again later.",
+          );
+        } else if (error?.code === "ERR_NETWORK") {
           toast.error("Please check your network connection");
         } else {
           const errorMessage =

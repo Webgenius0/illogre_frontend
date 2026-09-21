@@ -8,18 +8,31 @@ import {
   useRegisterResendOtp,
 } from "@/hooks/auth.api";
 import { Spinner } from "../ui/spinner";
+import { toast } from "sonner";
 
 export default function EmailVerification() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "example@email.com";
-  const [otp, setOtp] = useState(["", "", "", ""]);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(60);
   const inputRefs = [
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
   ];
+
+  // Show OTP in toast when provided by response/URL
+  useEffect(() => {
+    const devOtpUrl = searchParams.get("otp");
+    if (devOtpUrl) {
+      toast.success(
+        `We've sent a 6-digit verification code to your email. (OTP: ${devOtpUrl})`
+      );
+    }
+  }, [searchParams]);
 
   // Resend timer logic
   useEffect(() => {
@@ -42,18 +55,18 @@ export default function EmailVerification() {
 
     if (digits.length > 1) {
       const newOtp = [...otp];
-      for (let i = 0; i < digits.length && index + i < 4; i++) {
+      for (let i = 0; i < digits.length && index + i < 6; i++) {
         newOtp[index + i] = digits[i];
       }
       setOtp(newOtp);
-      const nextFocusIndex = Math.min(index + digits.length, 3);
+      const nextFocusIndex = Math.min(index + digits.length, 5);
       inputRefs[nextFocusIndex]?.current?.focus();
     } else {
       const newOtp = [...otp];
       newOtp[index] = digits;
       setOtp(newOtp);
 
-      if (index < 3) {
+      if (index < 5) {
         inputRefs[index + 1]?.current?.focus();
       }
     }
@@ -69,12 +82,12 @@ export default function EmailVerification() {
     if (!digits) return;
 
     const newOtp = [...otp];
-    for (let i = 0; i < digits.length && index + i < 4; i++) {
+    for (let i = 0; i < digits.length && index + i < 6; i++) {
       newOtp[index + i] = digits[i];
     }
     setOtp(newOtp);
 
-    const nextFocusIndex = Math.min(index + digits.length, 3);
+    const nextFocusIndex = Math.min(index + digits.length, 5);
     inputRefs[nextFocusIndex]?.current?.focus();
   };
 
@@ -89,16 +102,16 @@ export default function EmailVerification() {
   };
 
   const otpVerifyMutation = useRegisterEmailVerification();
+  const resendOtpMutation = useRegisterResendOtp();
 
   const handleVerify = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const code = otp.join("");
-    if (code.length === 4) {
+    if (code.length === 6) {
       otpVerifyMutation.mutate({ email, otp: code });
     }
   };
 
-  const resendOtpMutation = useRegisterResendOtp();
 
   const handleResend = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -110,7 +123,7 @@ export default function EmailVerification() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden font-urbanist">
-      <div className="w-full max-w-100 z-10 space-y-4 sm:space-y-8 flex flex-col items-center">
+      <div className="w-full max-w-115 z-10 space-y-4 sm:space-y-8 flex flex-col items-center">
         <div className="w-full bg-white/30 backdrop-blur-xl border border-white/60 rounded-2xl p-6 shadow-lg relative text-center">
           {/* Email Icon */}
           <div className="flex justify-center mb-6">
@@ -123,13 +136,14 @@ export default function EmailVerification() {
 
           <h2 className="text-2xl font-semibold mb-2">Verify Your Email</h2>
           <p className="text-[#A0A0A0] text-base mb-8 sm:mb-12 font-normal space-x-1">
-            <span>We've sent a code to</span>
+            <span>We've sent a 6-digit code to</span>
             <span className="text-foreground font-semibold block sm:inline">
               {email}
             </span>
           </p>
+
           <form onSubmit={handleVerify}>
-            <div className="flex justify-center gap-2 sm:gap-4 mb-8 sm:mb-12">
+            <div className="flex justify-center gap-1.5 sm:gap-3 mb-8 sm:mb-12">
               {otp.map((digit, index) => (
                 <input
                   key={index}
@@ -141,7 +155,7 @@ export default function EmailVerification() {
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   onPaste={(e) => handlePaste(index, e)}
                   placeholder="-"
-                  className="size-14 text-center text-2xl font-semibold bg-white/30 border border-white/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-gray-400/50 shadow-sm"
+                  className="size-11 sm:size-14 text-center text-xl sm:text-2xl font-semibold bg-white/30 border border-white/60 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-gray-400/50 shadow-sm"
                 />
               ))}
             </div>
