@@ -14,7 +14,7 @@ export const axiosPublic = axios.create({
     Accept: "application/json",
     "ngrok-skip-browser-warning": "69420",
   },
-  withCredentials: false,
+  withCredentials: true,
 });
 
 axiosPublic.interceptors.response.use(

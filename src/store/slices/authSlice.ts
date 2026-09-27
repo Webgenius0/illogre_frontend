@@ -24,7 +24,7 @@ export interface AuthState {
 }
 
 const getInitialToken = (): string | null => {
-  return getCookie("tixolve_access_token") || null;
+  return null;
 };
 
 const getInitialUser = (): UserState | null => {
@@ -39,8 +39,8 @@ const getInitialUser = (): UserState | null => {
 
 const initialState: AuthState = {
   user: getInitialUser(),
-  token: getInitialToken(),
-  remember: Boolean(getCookie("tixolve_access_token")),
+  token: null,
+  remember: Boolean(getInitialUser()),
 };
 
 const authSlice = createSlice({
@@ -49,21 +49,19 @@ const authSlice = createSlice({
   reducers: {
     setAuth: (
       state,
-      action: PayloadAction<{ user: UserState; token: string; remember?: boolean }>
+      action: PayloadAction<{ user: UserState; token?: string; remember?: boolean }>
     ) => {
-      const { user, token, remember } = action.payload;
+      const { user, remember } = action.payload;
       state.user = user;
-      state.token = token;
+      state.token = null;
       state.remember = Boolean(remember);
 
-      if (token) {
-        setCookie("tixolve_access_token", token, 7);
-      }
       if (user) {
         setCookie("tixolve_access_user", JSON.stringify(user), 7);
       }
 
       // Cleanup legacy plain-text storage
+      removeCookie("tixolve_access_token");
       removeLocalStorage("tixolve_access_token");
       removeLocalStorage("tixolve_access_user");
       removeSessionStorage("tixolve_access_token");

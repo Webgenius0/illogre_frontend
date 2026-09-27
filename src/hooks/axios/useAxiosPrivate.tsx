@@ -17,6 +17,7 @@ const axiosPrivate = axios.create({
     "ngrok-skip-browser-warning": "69420",
   },
   timeout: 30000,
+  withCredentials: true,
 });
 
 axiosPrivate.interceptors.request.use(
