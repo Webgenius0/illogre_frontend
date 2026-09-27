@@ -36,7 +36,11 @@ export function useApiQuery<TData = any, TError = any>({
 /**
  * HOOK FOR POST, PUT, DELETE, PATCH
  */
-export function useApiMutation<TData = any, TError = any, TVariables = any>({
+export function useApiMutation<
+  TData = any,
+  TError = any,
+  TVariables = any,
+>({
   endpoint,
   method = "post",
   isPrivate = false,
@@ -51,7 +55,6 @@ export function useApiMutation<TData = any, TError = any, TVariables = any>({
     mutationFn: async (variables) => {
       const config: AxiosRequestConfig = { headers };
 
-      // Dynamic method call: axiosInstance.post, axiosInstance.put, etc.
       const res = await axiosInstance[method as Exclude<ApiMethod, "get">](
         endpoint,
         variables,

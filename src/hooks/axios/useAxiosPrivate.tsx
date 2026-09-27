@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { AppStore, store } from "@/store/store";
 import { logout } from "@/store/slices/authSlice";
 
-let storeInstance: AppStore;
+let storeInstance: AppStore | null = null;
 
 export const injectStore = (s: AppStore) => {
   storeInstance = s;
@@ -50,7 +50,7 @@ axiosPrivate.interceptors.response.use(
     // 401 Unauthorized
     if (status === 401) {
       // 1. Clear the local state/token
-      store.dispatch(logout());
+      (storeInstance?.dispatch || store.dispatch)(logout());
       if (typeof window !== "undefined") {
         const currentPath = window.location.pathname;
         const publicRoutes = [
@@ -100,6 +100,24 @@ axiosPrivate.interceptors.response.use(
     if (status === 400) {
       if (response.data?.message) {
         toast.error(response.data.message);
+      }
+      return Promise.reject(error);
+    }
+
+    // 422 Unprocessable Entity (Validation Error)
+    if (status === 422) {
+      const validationErrors = response.data?.errors;
+      if (validationErrors && typeof validationErrors === "object") {
+        const firstErrorMsg = Object.values(validationErrors)
+          .flat()
+          .find((msg) => typeof msg === "string");
+        toast.error(
+          (firstErrorMsg as string) ||
+            response.data?.message ||
+            "Validation failed."
+        );
+      } else {
+        toast.error(response.data?.message || "Validation failed.");
       }
       return Promise.reject(error);
     }

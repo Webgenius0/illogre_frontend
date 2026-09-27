@@ -8,7 +8,14 @@ import { ShopifyConnectModal } from "@/components/integrations/ShopifyConnectMod
 import { ShopifyProcessingModal } from "@/components/integrations/ShopifyProcessingModal";
 import { ConnectIntegrationModal } from "@/components/integrations/ConnectIntegrationModal";
 import { ActionModal } from "@/components/shared/ActionModal";
-import { useIntegrations, useDisconnectIntegration } from "@/hooks/owner.api";
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  useIntegrations,
+  useDisconnectIntegration,
+  useFetchEmails,
+} from "@/hooks/owner.api";
 import { useBillingOverview } from "@/hooks/billing.api";
 import { toast } from "sonner";
 import shopify from "../../../assets/shopify.png";
@@ -63,8 +70,6 @@ export default function IntegrationsPage() {
   const { data: billingRes } = useBillingOverview();
   const billingData = billingRes?.data || {};
 
-  console.log(billingData);
-
   const currentPlanName = (billingData?.current_plan?.name || "")
     .toString()
     .toLowerCase();
@@ -73,6 +78,24 @@ export default function IntegrationsPage() {
 
   const { data: integrationsResponse, isLoading, refetch } = useIntegrations();
   const { mutate: disconnectIntegration } = useDisconnectIntegration();
+  const { mutate: fetchEmails, isPending: isSyncingMail } = useFetchEmails();
+
+  const handleSyncMailbox = () => {
+    fetchEmails(undefined, {
+      onSuccess: (res: any) => {
+        toast.success(
+          res?.message || "Mailbox synchronization started successfully!"
+        );
+      },
+      onError: (err: any) => {
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to start mailbox sync."
+        );
+      },
+    });
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -183,11 +206,21 @@ export default function IntegrationsPage() {
   return (
     <div className=" animate-in fade-in slide-in-from-bottom-3 duration-400">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-semibold mb-1">Integrations</h1>
-        <p className="text-muted-foreground text-sm">
-          Connect Tixolve with your favorite tools and platforms.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold mb-1">Integrations</h1>
+          <p className="text-muted-foreground text-sm">
+            Connect Tixolve with your favorite tools and platforms.
+          </p>
+        </div>
+        <Button
+          onClick={handleSyncMailbox}
+          disabled={isSyncingMail}
+          className="bg-[#B2E08A] hover:bg-[#A3D17B] text-gray-900 font-semibold px-4 py-2 rounded-xl flex items-center gap-2 self-start sm:self-auto cursor-pointer"
+        >
+          {isSyncingMail ? <Spinner className="size-4" /> : <RefreshCw className="size-4" />}
+          {isSyncingMail ? "Syncing..." : "Sync Mailbox"}
+        </Button>
       </div>
       <div className="space-y-12 mt-8">
         {/* Connected Section */}

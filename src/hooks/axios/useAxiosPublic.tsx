@@ -3,7 +3,7 @@ import axios from "axios";
 const BASE_URL = `${process.env.NEXT_PUBLIC_BASE_URL}/api`;
 
 if (!BASE_URL) {
-  throw new Error("VITE_BASE_URL is not defined");
+  throw new Error("NEXT_PUBLIC_BASE_URL is not defined");
 }
 
 export const axiosPublic = axios.create({

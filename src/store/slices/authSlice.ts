@@ -1,64 +1,93 @@
+import { getCookie, removeCookie, setCookie } from "@/utils/cookie";
 import {
-  getLocalStorage,
   removeLocalStorage,
-  setLocalStorage,
 } from "@/utils/localStorage";
 import {
-  getSessionStorage,
   removeSessionStorage,
-  setSessionStorage,
 } from "@/utils/sessionStorage";
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-const getInitialToken = () => {
-  return (
-    getSessionStorage("tixolve_access_token") ||
-    getLocalStorage("tixolve_access_token") ||
-    null
-  );
+export interface UserState {
+  id?: number | string;
+  name?: string;
+  email?: string;
+  role?: string;
+  is_verified?: boolean;
+  is_ai_configured?: boolean;
+  [key: string]: unknown;
+}
+
+export interface AuthState {
+  user: UserState | null;
+  token: string | null;
+  remember: boolean;
+}
+
+const getInitialToken = (): string | null => {
+  return getCookie("tixolve_access_token") || null;
 };
 
-const getInitialUser = () => {
-  return (
-    getSessionStorage("tixolve_access_user") ||
-    getLocalStorage("tixolve_access_user") ||
-    null
-  );
+const getInitialUser = (): UserState | null => {
+  const userCookie = getCookie("tixolve_access_user");
+  if (!userCookie) return null;
+  try {
+    return JSON.parse(userCookie);
+  } catch {
+    return null;
+  }
 };
 
-const initialState = {
+const initialState: AuthState = {
   user: getInitialUser(),
   token: getInitialToken(),
-  remember: Boolean(getLocalStorage("tixolve_access_token")),
+  remember: Boolean(getCookie("tixolve_access_token")),
 };
 
 const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setAuth: (state, action) => {
+    setAuth: (
+      state,
+      action: PayloadAction<{ user: UserState; token: string; remember?: boolean }>
+    ) => {
       const { user, token, remember } = action.payload;
       state.user = user;
       state.token = token;
-      state.remember = remember;
-      setLocalStorage("tixolve_access_token", token);
-      setLocalStorage("tixolve_access_user", user);
-      setSessionStorage("tixolve_access_token", token);
-      setSessionStorage("tixolve_access_user", user);
+      state.remember = Boolean(remember);
+
+      if (token) {
+        setCookie("tixolve_access_token", token, 7);
+      }
+      if (user) {
+        setCookie("tixolve_access_user", JSON.stringify(user), 7);
+      }
+
+      // Cleanup legacy plain-text storage
+      removeLocalStorage("tixolve_access_token");
+      removeLocalStorage("tixolve_access_user");
+      removeSessionStorage("tixolve_access_token");
+      removeSessionStorage("tixolve_access_user");
     },
 
     logout: (state) => {
       state.user = null;
       state.token = null;
       state.remember = false;
-      removeSessionStorage("tixolve_access_token");
+
+      removeCookie("tixolve_access_token");
+      removeCookie("tixolve_access_user");
       removeLocalStorage("tixolve_access_token");
       removeLocalStorage("tixolve_access_user");
+      removeSessionStorage("tixolve_access_token");
       removeSessionStorage("tixolve_access_user");
     },
 
-    setUser: (state, action) => {
+    setUser: (state, action: PayloadAction<UserState>) => {
       state.user = action.payload;
+      if (action.payload) {
+        setCookie("tixolve_access_user", JSON.stringify(action.payload), 7);
+      }
     },
   },
 });
@@ -66,3 +95,4 @@ const authSlice = createSlice({
 export const { setAuth, logout, setUser } = authSlice.actions;
 
 export default authSlice.reducer;
+

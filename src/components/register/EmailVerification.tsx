@@ -24,16 +24,6 @@ export default function EmailVerification() {
     useRef<HTMLInputElement>(null),
   ];
 
-  // Show OTP in toast when provided by response/URL
-  useEffect(() => {
-    const devOtpUrl = searchParams.get("otp");
-    if (devOtpUrl) {
-      toast.success(
-        `We've sent a 6-digit verification code to your email. (OTP: ${devOtpUrl})`
-      );
-    }
-  }, [searchParams]);
-
   // Resend timer logic
   useEffect(() => {
     if (timer > 0) {

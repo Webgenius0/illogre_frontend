@@ -66,8 +66,8 @@ export default function BillingHistory({
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
-    doc.text("Illogre", 160, 20);
-    doc.text("support@illogre.com", 160, 26);
+    doc.text("Tixolve", 160, 20);
+    doc.text("support@tixolve.com", 160, 26);
 
     // Invoice Details
     doc.setTextColor(...textColor);

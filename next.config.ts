@@ -5,18 +5,6 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "alesha-unagile-sveltely.ngrok-free.dev",
-        port: "",
-        pathname: "/uploads/**",
-      },
-      {
-        protocol: "https",
-        hostname: "illo.thesyndicates.team",
-        port: "",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
         hostname: "app.tixolve.com",
         port: "",
         pathname: "/**",
@@ -24,6 +12,12 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "admin.tixolve.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "api.tixolve.com",
         port: "",
         pathname: "/**",
       },

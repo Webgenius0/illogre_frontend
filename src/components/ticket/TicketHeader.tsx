@@ -10,7 +10,8 @@ import {
   SelectValue,
 } from "../ui/select";
 import Link from "next/link";
-import { useUpdateTicketStatus } from "@/hooks/tickets.api";
+import { useAssignTicket, useUpdateTicketStatus } from "@/hooks/tickets.api";
+import { useTeamOverview } from "@/hooks/team.api";
 
 const statusStyles: Record<string, string> = {
   low: "bg-gray-500 text-white",
@@ -26,15 +27,29 @@ interface TicketHeaderProps {
     priority: string;
     status: string;
     sla?: string;
+    assigned?: string | null;
+    assigned_user_id?: number | null;
+    assigned_user?: {
+      id: number;
+      name: string;
+      email?: string;
+    } | null;
   } | null;
   onStatusChange?: (newStatus: string) => void;
 }
 
 export function TicketHeader({ ticket, onStatusChange }: TicketHeaderProps) {
   const [status, setStatus] = useState<string>(ticket?.status || "Open");
-  const [priority, setPriority] = useState<string>(ticket?.priority?.toLowerCase()?.trim() || "high");
+  const [priority, setPriority] = useState<string>(
+    ticket?.priority?.toLowerCase()?.trim() || "high"
+  );
 
-  const { mutateAsync: updateStatus } = useUpdateTicketStatus(ticket?.id as string);
+  const { mutateAsync: updateStatus } = useUpdateTicketStatus(
+    ticket?.id as string
+  );
+  const { mutate: assignTicket } = useAssignTicket(ticket?.id as string);
+  const { data: teamRes } = useTeamOverview();
+  const teamMembers: any[] = teamRes?.data?.team || teamRes?.data?.agents || teamRes?.data || [];
 
   useEffect(() => {
     if (ticket?.status) {
@@ -60,6 +75,21 @@ export function TicketHeader({ ticket, onStatusChange }: TicketHeaderProps) {
     }
   };
 
+  const handleAssigneeSelect = (value: string | null) => {
+    if (!value || !ticket?.id) return;
+    if (value === "ai_agent") {
+      assignTicket({ assigned_user_id: null, assigned: "AI Agent" });
+    } else if (value === "support_team") {
+      assignTicket({ assigned_user_id: null, assigned: "Support Team" });
+    } else {
+      const selectedMember = teamMembers.find((m) => String(m.id) === value);
+      assignTicket({
+        assigned_user_id: Number(value),
+        assigned: selectedMember?.name || "Agent",
+      });
+    }
+  };
+
   const getStatusBadgeColor = (st: string) => {
     const s = st.toLowerCase();
     if (s === "closed") return "bg-gray-800 text-white border-gray-700/40";
@@ -68,10 +98,22 @@ export function TicketHeader({ ticket, onStatusChange }: TicketHeaderProps) {
     return "bg-blue-600 text-white border-blue-500/40";
   };
 
+  const currentAssigneeValue = ticket?.assigned_user_id
+    ? String(ticket.assigned_user_id)
+    : ticket?.assigned === "Support Team"
+    ? "support_team"
+    : "ai_agent";
+
+  const currentAssigneeName =
+    ticket?.assigned_user?.name || ticket?.assigned || "AI Agent";
+
   return (
     <div className="bg-linear-to-tr from-secondary to-primary px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-t-2xl">
       <div className="flex items-center gap-3">
-        <Link href="/tickets" className="p-2 hover:bg-black/5 rounded-full transition-colors flex items-center">
+        <Link
+          href="/tickets"
+          className="p-2 hover:bg-black/5 rounded-full transition-colors flex items-center"
+        >
           <ArrowLeft className="w-5 h-5 text-gray-800" />
         </Link>
         <h1 className="text-xl font-semibold text-gray-900">
@@ -95,6 +137,24 @@ export function TicketHeader({ ticket, onStatusChange }: TicketHeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Interactive Assignee Select */}
+        <Select value={currentAssigneeValue} onValueChange={handleAssigneeSelect}>
+          <SelectTrigger className="h-auto w-auto bg-white/80 border-gray-200 px-3 py-1 rounded-full text-xs font-semibold text-gray-800">
+            <SelectValue placeholder={currentAssigneeName}>
+              Assignee: {currentAssigneeName}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ai_agent">AI Agent</SelectItem>
+            <SelectItem value="support_team">Support Team</SelectItem>
+            {teamMembers.map((member: any) => (
+              <SelectItem key={member.id} value={String(member.id)}>
+                {member.name || member.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={priority}
           onValueChange={(val) => setPriority(val as string)}
@@ -116,7 +176,9 @@ export function TicketHeader({ ticket, onStatusChange }: TicketHeaderProps) {
         <div className="flex items-center gap-2 text-gray-800 font-medium">
           <Clock className="w-5 h-5" />
           <span>{ticket?.sla || "2h"}</span>
-          <span className="text-gray-600/80 font-normal ml-1">(SLA: {ticket?.sla || "2h"})</span>
+          <span className="text-gray-600/80 font-normal ml-1">
+            (SLA: {ticket?.sla || "2h"})
+          </span>
         </div>
       </div>
     </div>

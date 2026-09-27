@@ -5,11 +5,12 @@ export type ApiMethod = "get" | "post" | "put" | "delete" | "patch";
 export interface BaseApiOptions {
   endpoint: string;
   isPrivate?: boolean;
-  key: string | any[];
+  key: string | unknown[];
   headers?: Record<string, string>;
 }
 
-export interface QueryOptions<TData, TError> extends BaseApiOptions {
+export interface QueryOptions<TData = any, TError = any>
+  extends BaseApiOptions {
   params?: Record<string, any>;
   enabled?: boolean;
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">;
@@ -17,9 +18,9 @@ export interface QueryOptions<TData, TError> extends BaseApiOptions {
 }
 
 export interface MutationOptions<
-  TData,
-  TError,
-  TVariables,
+  TData = any,
+  TError = any,
+  TVariables = any,
 > extends BaseApiOptions {
   method?: Exclude<ApiMethod, "get">;
   options?: Omit<

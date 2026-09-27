@@ -81,12 +81,22 @@ export default function GoogleAuthSettingsCard() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateGoogleAuth({
+    const payload: Record<string, unknown> = {
       google_client_id: clientId,
-      google_client_secret: clientSecret,
       google_redirect_uri: redirectUri,
       google_auth_enabled: isEnabled,
-    });
+    };
+
+    // Only include secret if user explicitly typed a new unmasked secret
+    if (
+      clientSecret &&
+      !clientSecret.includes("••••") &&
+      clientSecret !== "••••••••"
+    ) {
+      payload.google_client_secret = clientSecret;
+    }
+
+    updateGoogleAuth(payload);
   };
 
   if (isLoading) {

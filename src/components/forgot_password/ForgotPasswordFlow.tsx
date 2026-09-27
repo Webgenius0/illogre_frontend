@@ -48,28 +48,15 @@ export default function ForgotPasswordFlow() {
     }
   }, [step, timer]);
 
-  const [devOtp, setDevOtp] = useState("");
-
-  useEffect(() => {
-    if (step === 2 && devOtp) {
-      toast.success(
-        `We've sent a 6-digit verification code to your email. (OTP: ${devOtp})`
-      );
-    }
-  }, [step, devOtp]);
-
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (email) {
       forgotPassword(
         { email },
         {
-          onSuccess: (data: any) => {
+          onSuccess: () => {
             setStep(2);
             setTimer(60);
-            if (data?.otp || data?.data?.otp) {
-              setDevOtp(data?.otp || data?.data?.otp);
-            }
           },
         },
       );

@@ -66,3 +66,20 @@ export const useUpdateTicketStatus = (id: string | number | null) => {
     isPrivate: true,
   });
 };
+
+/**
+ * Hook to assign or reassign a ticket to a user or system
+ */
+export const useAssignTicket = (id: string | number | null) => {
+  return useApiMutation<
+    any,
+    any,
+    { assigned_user_id?: number | null; assigned?: string }
+  >({
+    key: ["assign-ticket", id],
+    endpoint: `/shared/tickets/${id}/assign`,
+    method: "patch",
+    isPrivate: true,
+  });
+};
+

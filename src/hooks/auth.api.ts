@@ -157,11 +157,9 @@ export const useRegister = () => {
     endpoint: "/auth/register",
     options: {
       onSuccess: (data, payload) => {
-        const otp = data?.otp || data?.data?.otp;
         const message = data?.data?.message || "Registration successful";
-        toast.success(otp ? `${message} (OTP: ${otp})` : message);
-        const devOtp = otp ? `&otp=${otp}` : "";
-        router.push(`/auth/register/email_verification?email=${payload.email}${devOtp}`);
+        toast.success(message);
+        router.push(`/auth/register/email_verification?email=${payload.email}`);
       },
       onError: (error) => {
         // 'error' is now typed as AxiosError
@@ -228,9 +226,8 @@ export const useRegisterResendOtp = () => {
     endpoint: "/auth/resend-otp",
     options: {
       onSuccess: (data) => {
-        const otp = data?.otp || data?.data?.otp;
         const message = data?.message || "OTP code resent successfully";
-        toast.success(otp ? `${message} (OTP: ${otp})` : message);
+        toast.success(message);
       },
       onError: (error: any) => {
         if (error?.response?.status === 429) {
@@ -285,9 +282,8 @@ export const useForgotPassword = () => {
     endpoint: "/auth/forgot-password",
     options: {
       onSuccess: (data) => {
-        const otp = data?.otp || data?.data?.otp;
         const message = data?.message || "OTP sent to your email";
-        toast.success(otp ? `${message} (OTP: ${otp})` : message);
+        toast.success(message);
       },
       onError: (error: any) => {
         if (error?.response?.status === 429) {

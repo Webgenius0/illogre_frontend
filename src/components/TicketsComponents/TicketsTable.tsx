@@ -303,7 +303,7 @@ export function TicketsTable() {
                         </Badge>
                       </TableCell>
                       <TableCell className="py-2 text-sm font-medium text-gray-600">
-                        {ticket.assigned}
+                        {ticket.assigned_user?.name || ticket.assigned || "Unassigned"}
                       </TableCell>
                       <TableCell className="py-2 text-right text-sm text-muted-foreground">
                         {ticket.updated}

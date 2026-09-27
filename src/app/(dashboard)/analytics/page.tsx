@@ -114,7 +114,7 @@ export default function AnalyticsPage() {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.setTextColor(31, 41, 55); // gray-800
-      doc.text("Illogre Analytics Report", 30, 23);
+      doc.text("Tixolve Analytics Report", 30, 23);
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
@@ -303,13 +303,13 @@ export default function AnalyticsPage() {
       doc.setFontSize(8);
       doc.setTextColor(156, 163, 175);
       doc.text(
-        "© 2024 Illogre Inc. | Confidential Intelligence Report",
+        "© 2024 Tixolve Inc. | Confidential Intelligence Report",
         15,
         285,
       );
       doc.text("Page 1 of 1", pageWidth - 30, 285);
 
-      doc.save(`Illogre_Report_${new Date().getTime()}.pdf`);
+      doc.save(`Tixolve_Report_${new Date().getTime()}.pdf`);
     } catch (e) {
       console.error("PDF Fail", e);
     } finally {

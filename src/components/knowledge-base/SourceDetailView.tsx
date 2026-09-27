@@ -301,9 +301,8 @@ export function SourceDetailView({
                   {aiStatus.status}
                 </span>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Documents are processed and converted into embeddings so the
-                  AI can retrieve relevant information when generating
-                  responses.
+                  Documents are processed and text-indexed so the AI can retrieve
+                  relevant information when generating responses.
                 </p>
               </div>
             </div>
@@ -414,7 +413,7 @@ export function SourceDetailView({
                     <span>Model: {apiTestResponse?.sources_used?.model}</span>
                     <span>•</span>
                     <span>
-                      Embedding: {apiTestResponse?.sources_used?.embedding}
+                      Index Status: {apiTestResponse?.sources_used?.embedding || "Text-Indexed"}
                     </span>
                   </div>
                 </div>
