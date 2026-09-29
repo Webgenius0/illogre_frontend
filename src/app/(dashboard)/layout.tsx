@@ -2,8 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { logout, setUser, UserState } from "@/store/slices/authSlice";
+import { useCurrentUser } from "@/hooks/auth.api";
+import { Spinner } from "@/components/ui/spinner";
 import Header from "@/shared/Header";
 import Sidebar from "@/shared/Sidebar";
 import { X } from "lucide-react";
@@ -16,9 +19,11 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isChecking, setIsChecking] = useState(true);
-  const token = useSelector((state: RootState) => state.auth.token);
-  const user = useSelector((state: RootState) => state.auth.user as any);
+  const dispatch = useDispatch();
+
+  const { data: currentUser, isLoading, isError } = useCurrentUser();
+  const reduxUser = useSelector((state: RootState) => state.auth.user as UserState | null);
+  const activeUser = currentUser || reduxUser;
 
   const restrictedRoutes = [
     "/customers",
@@ -29,20 +34,49 @@ export default function DashboardLayout({
   const isRestricted = restrictedRoutes.some((route) =>
     pathname.startsWith(route),
   );
-  const isAiBlocked = isRestricted && user && user.is_ai_configured === false;
+  const isAiBlocked = isRestricted && activeUser && activeUser.is_ai_configured === false;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // Sync authenticated user into Redux store
   useEffect(() => {
-    if (!token) {
-      router.replace("/auth/login");
-      return;
+    if (currentUser) {
+      dispatch(setUser(currentUser));
     }
+  }, [currentUser, dispatch]);
 
-    setIsChecking(false);
-  }, [token]);
+  // Handle unauthenticated state or session expiration
+  useEffect(() => {
+    if (isError) {
+      dispatch(logout());
+      const loginUrl = `/auth/login?callbackUrl=${encodeURIComponent(pathname)}`;
+      router.replace(loginUrl);
+    }
+  }, [isError, pathname, router, dispatch]);
 
-  if (isChecking) return null;
+  // Redirect unsubscribed owners to plan selection
+  useEffect(() => {
+    if (
+      activeUser &&
+      activeUser.role === "owner" &&
+      activeUser.is_subscribed === false &&
+      !pathname.startsWith("/billing")
+    ) {
+      router.replace("/auth/register/plans");
+    }
+  }, [activeUser, pathname, router]);
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <Spinner className="size-8 text-primary" />
+      </div>
+    );
+  }
+
+  if (isError || !activeUser) {
+    return null;
+  }
 
   return (
     <div className="p-4 lg:pr-0 h-screen overflow-hidden flex flex-col">

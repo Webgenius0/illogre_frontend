@@ -10,39 +10,17 @@ import { Controller, useForm } from "react-hook-form";
 import { validators } from "@/utils/validator";
 import { Checkbox } from "../ui/checkbox";
 import { useRouter } from "next/navigation";
-import { useRegister, useSocialLogin } from "@/hooks/auth.api";
-import { useGoogleLogin } from "@react-oauth/google";
-import { toast } from "sonner";
+import { useRegister } from "@/hooks/auth.api";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
+import { GoogleSignInButton } from "../shared/GoogleSignInButton";
 
 export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
   const router = useRouter();
 
   // register mutation
   const { mutate: registerUser, isPending } = useRegister();
-  const socialLoginMutation = useSocialLogin();
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
-      setGoogleLoading(true);
-      socialLoginMutation.mutate(
-        { token: tokenResponse.access_token },
-        {
-          onSettled: () => {
-            setGoogleLoading(false);
-          },
-        },
-      );
-    },
-    onError: (error) => {
-      console.error("Google OAuth error:", error);
-      toast.error("Google sign-in was unsuccessful.");
-      setGoogleLoading(false);
-    },
-  });
 
   const {
     register,
@@ -256,27 +234,7 @@ export default function RegisterForm() {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-4">
-            <button
-              type="button"
-              disabled={googleLoading || socialLoginMutation.isPending}
-              onClick={() => {
-                setGoogleLoading(true);
-                googleLogin();
-              }}
-              className="flex items-center justify-center gap-3 py-2 px-4 bg-white/60 border border-white rounded-md hover:bg-white/80 transition-all duration-300 shadow-sm font-medium text-gray-700 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {googleLoading || socialLoginMutation.isPending ? (
-                <>
-                  <Spinner className="w-4 h-4" />
-                  <span>Connecting to Google...</span>
-                </>
-              ) : (
-                <>
-                  <Image src={google} alt="Google" className="w-5" />
-                  Google
-                </>
-              )}
-            </button>
+            <GoogleSignInButton />
           </div>
 
           <div className="mt-10 text-center text-sm flex items-center gap-1.5 justify-center">

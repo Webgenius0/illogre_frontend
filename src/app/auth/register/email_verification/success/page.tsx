@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 
-export default function page() {
+export default function Page() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden font-urbanist">
       <div className="w-full max-w-140 z-10 space-y-4 sm:space-y-8 flex flex-col items-center">

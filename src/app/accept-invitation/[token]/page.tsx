@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { AxiosError } from "axios";
 import { axiosPublic } from "@/hooks/axios/useAxiosPublic";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,20 +14,54 @@ export default function AcceptInvitationPage() {
   const token = params?.token as string;
   const router = useRouter();
 
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"inspecting" | "idle" | "loading" | "success" | "error">("inspecting");
   const [message, setMessage] = useState("");
+  const [details, setDetails] = useState<{ email?: string; company_name?: string } | null>(null);
+
+  // Inspect invitation on mount (safe read-only GET)
+  React.useEffect(() => {
+    if (!token) {
+      setStatus("error");
+      setMessage("Missing or invalid invitation token.");
+      return;
+    }
+
+    const inspectInvitation = async () => {
+      try {
+        const response = await axiosPublic.get(
+          `/auth/accept-invitation/${encodeURIComponent(token)}`
+        );
+        if (response.data?.success || response.data?.status === "success") {
+          setDetails(response.data?.data || null);
+          setStatus("idle");
+        } else {
+          setStatus("error");
+          setMessage(response.data?.message || "Invalid or expired invitation.");
+        }
+      } catch (error: unknown) {
+        const err = error as AxiosError<{ message?: string }>;
+        setStatus("error");
+        setMessage(
+          err.response?.data?.message ||
+            "Unable to verify invitation. It may be expired or already used."
+        );
+      }
+    };
+
+    inspectInvitation();
+  }, [token]);
 
   const handleAccept = async () => {
     if (!token) return;
     setStatus("loading");
     try {
       const response = await axiosPublic.post(
-        `/auth/accept-invitation/${token}`
+        `/auth/accept-invitation/${encodeURIComponent(token)}`
       );
 
       if (response.data?.success || response.data?.status === "success" || response.data?.data) {
         setStatus("success");
-        setMessage(response.data?.message || "Invitation accepted successfully!");
+        setMessage(response.data?.message || "Invitation accepted successfully! Account activated.");
         setTimeout(() => {
           router.push("/auth/login");
         }, 2000);
@@ -34,10 +69,11 @@ export default function AcceptInvitationPage() {
         setStatus("error");
         setMessage(response.data?.message || "Failed to accept invitation.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as AxiosError<{ message?: string }>;
       setStatus("error");
       setMessage(
-        error.response?.data?.message ||
+        err.response?.data?.message ||
           "Something went wrong while accepting the invitation. Please try again."
       );
     }
@@ -51,9 +87,26 @@ export default function AcceptInvitationPage() {
             Team Invitation
           </h3>
           <p className="text-sm text-gray-500 leading-relaxed">
-            You have been invited to join a workspace team on Tixolve. Do you want to accept this invitation and activate your account?
+            {details?.company_name
+              ? `You have been invited to join ${details.company_name} on Tixolve.`
+              : "You have been invited to join a workspace team on Tixolve."}{" "}
+            Do you want to accept this invitation and activate your account?
           </p>
+          {details?.email && (
+            <p className="text-xs text-gray-400 font-medium">
+              Invited as: <span className="text-gray-700 font-semibold">{details.email}</span>
+            </p>
+          )}
         </div>
+
+        {status === "inspecting" && (
+          <div className="flex items-center justify-center space-x-2 text-gray-500 py-3">
+            <div className="w-4 h-4 bg-gray-400 rounded-full animate-bounce"></div>
+            <div className="w-4 h-4 bg-gray-400 rounded-full animate-bounce [animation-delay:-.3s]"></div>
+            <div className="w-4 h-4 bg-gray-400 rounded-full animate-bounce [animation-delay:-.5s]"></div>
+            <span className="font-medium ml-2 text-xs">Verifying invitation...</span>
+          </div>
+        )}
 
         {status === "success" && (
           <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-xs flex items-center gap-2">

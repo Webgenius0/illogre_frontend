@@ -37,7 +37,7 @@ export const PricingCardSkeleton = () => {
   );
 };
 
-export default function page() {
+export default function Page() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(
     "monthly",
   );

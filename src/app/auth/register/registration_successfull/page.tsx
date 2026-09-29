@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSettings } from "@/hooks/settings.api";
 
-export default function page() {
+export default function Page() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [attempts, setAttempts] = useState(0);

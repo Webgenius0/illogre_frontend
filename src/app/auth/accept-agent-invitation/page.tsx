@@ -3,6 +3,7 @@
 import React, { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { AxiosError } from "axios";
 import { axiosPublic } from "@/hooks/axios/useAxiosPublic";
 import { useDispatch } from "react-redux";
 import { setAuth } from "@/store/slices/authSlice";
@@ -17,8 +18,43 @@ function AcceptAgentInvitationContent() {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"inspecting" | "idle" | "loading" | "success" | "error">("inspecting");
   const [message, setMessage] = useState("");
+  const [details, setDetails] = useState<{ email?: string; company_name?: string; role?: string } | null>(null);
+
+  // Inspect agent invitation on mount (safe read-only GET)
+  React.useEffect(() => {
+    if (!token) {
+      setStatus("error");
+      setMessage("Missing or invalid agent invitation token.");
+      return;
+    }
+
+    const inspectInvitation = async () => {
+      try {
+        const response = await axiosPublic.get(
+          `/auth/accept-agent-invitation?token=${encodeURIComponent(token)}`
+        );
+        const resData = response.data;
+        if (resData?.success || resData?.status === "success" || resData?.data) {
+          setDetails(resData?.data || null);
+          setStatus("idle");
+        } else {
+          setStatus("error");
+          setMessage(resData?.message || "Invalid or expired invitation.");
+        }
+      } catch (error: unknown) {
+        const err = error as AxiosError<{ message?: string }>;
+        setStatus("error");
+        setMessage(
+          err.response?.data?.message ||
+            "Unable to verify agent invitation. It may be expired or already used."
+        );
+      }
+    };
+
+    inspectInvitation();
+  }, [token]);
 
   const handleAccept = async () => {
     if (!token) {
@@ -28,20 +64,20 @@ function AcceptAgentInvitationContent() {
 
     setStatus("loading");
     try {
-      const response = await axiosPublic.get(
-        `/auth/accept-agent-invitation?token=${encodeURIComponent(token)}`
+      const response = await axiosPublic.post(
+        "/auth/accept-agent-invitation",
+        { token }
       );
 
       const resData = response.data;
       if (resData?.success || resData?.status === "success" || resData?.data) {
         setStatus("success");
-        setMessage(resData?.message || "Invitation accepted successfully!");
+        setMessage(resData?.message || "Invitation accepted successfully! Account activated.");
         
-        if (resData?.access_token && resData?.data) {
+        if (resData?.data) {
           dispatch(
             setAuth({
               user: resData.data,
-              token: resData.access_token,
               remember: true,
             })
           );
@@ -49,20 +85,17 @@ function AcceptAgentInvitationContent() {
 
         toast.success("Account activated!");
         setTimeout(() => {
-          if (resData?.access_token) {
-            router.push("/tickets");
-          } else {
-            router.push("/auth/login");
-          }
+          router.push("/tickets");
         }, 2000);
       } else {
         setStatus("error");
         setMessage(resData?.message || "Failed to accept invitation.");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as AxiosError<{ message?: string }>;
       setStatus("error");
       setMessage(
-        error.response?.data?.message ||
+        err.response?.data?.message ||
           "Something went wrong while accepting the invitation. Please try again."
       );
     }
@@ -76,9 +109,26 @@ function AcceptAgentInvitationContent() {
             Support Agent Invitation
           </h3>
           <p className="text-sm text-gray-500 leading-relaxed">
-            You have been invited to join the Tixolve Support Team. Do you want to accept this invitation and activate your account?
+            {details?.company_name
+              ? `You have been invited to join ${details.company_name} as a ${details?.role || "Support Agent"}.`
+              : "You have been invited to join the Tixolve Support Team."}{" "}
+            Do you want to accept this invitation and activate your account?
           </p>
+          {details?.email && (
+            <p className="text-xs text-gray-400 font-medium">
+              Invited as: <span className="text-gray-700 font-semibold">{details.email}</span>
+            </p>
+          )}
         </div>
+
+        {status === "inspecting" && (
+          <div className="flex items-center justify-center space-x-2 text-gray-500 py-3">
+            <div className="w-4 h-4 bg-gray-400 rounded-full animate-bounce"></div>
+            <div className="w-4 h-4 bg-gray-400 rounded-full animate-bounce [animation-delay:-.3s]"></div>
+            <div className="w-4 h-4 bg-gray-400 rounded-full animate-bounce [animation-delay:-.5s]"></div>
+            <span className="font-medium ml-2 text-xs">Verifying invitation...</span>
+          </div>
+        )}
 
         {status === "success" && (
           <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-xs flex items-center gap-2">

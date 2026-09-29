@@ -16,13 +16,23 @@ export default function ReduxProvider({ children }: ReduxProviderProps) {
     injectStore(store);
   }, []);
 
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const isGoogleConfigured = Boolean(
+    googleClientId &&
+    googleClientId.trim() !== "" &&
+    googleClientId !== "undefined" &&
+    googleClientId !== "your_client_id_here"
+  );
 
   return (
     <Provider store={store}>
-      <GoogleOAuthProvider clientId={googleClientId}>
-        {children}
-      </GoogleOAuthProvider>
+      {isGoogleConfigured ? (
+        <GoogleOAuthProvider clientId={googleClientId!}>
+          {children}
+        </GoogleOAuthProvider>
+      ) : (
+        children
+      )}
     </Provider>
   );
 }
