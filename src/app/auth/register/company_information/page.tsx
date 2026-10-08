@@ -1,6 +1,6 @@
 import CompanyInformationForm from "@/components/company_information/CompanyInformationForm";
 
-export default function page() {
+export default function Page() {
   return (
     <div>
       <CompanyInformationForm />

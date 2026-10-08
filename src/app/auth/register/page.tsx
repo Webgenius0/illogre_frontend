@@ -1,6 +1,6 @@
 import RegisterForm from "@/components/register/RegisterForm";
 
-export default function page() {
+export default function Page() {
   return (
     <div>
       <RegisterForm />

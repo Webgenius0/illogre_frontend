@@ -1,13 +1,43 @@
-import { useRouter } from "next/navigation";
-import { useApiMutation } from "./mutation/useApiMutation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useApiMutation, useApiQuery } from "./mutation/useApiMutation";
 import { useDispatch } from "react-redux";
-import { setAuth, logout } from "@/store/slices/authSlice";
+import { setAuth, logout, UserState } from "@/store/slices/authSlice";
+import { useQueryClient, MutateOptions } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { AxiosError } from "axios";
+
+interface AuthErrorPayload {
+  message?: string;
+  errors?: Record<string, string[]>;
+}
+
+// current user
+export const useCurrentUser = (options?: {
+  enabled?: boolean;
+  retry?: boolean | number;
+}) => {
+  return useApiQuery<UserState>({
+    key: ["current-user"],
+    endpoint: "/user",
+    isPrivate: true,
+    enabled: options?.enabled ?? true,
+    options: {
+      retry: options?.retry ?? false,
+      staleTime: 5 * 60 * 1000,
+      select: (data: unknown) => {
+        const payload = data as { data?: UserState } & UserState;
+        return payload?.data || payload;
+      },
+    },
+  });
+};
 
 // login
 export const useLogin = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
 
   return useApiMutation({
     key: "login-in",
@@ -19,10 +49,17 @@ export const useLogin = () => {
           dispatch(
             setAuth({
               user: data?.data,
-              token: data?.access_token,
               remember: true,
             }),
           );
+          queryClient.setQueryData(["current-user"], data?.data);
+
+          const callbackUrl = searchParams.get("callbackUrl");
+          if (callbackUrl && callbackUrl.startsWith("/")) {
+            router.push(callbackUrl);
+            return;
+          }
+
           const aiParam =
             data?.data?.is_ai_configured === false
               ? "?ai_not_configured=true"
@@ -59,7 +96,11 @@ export const useSocialLogin = () => {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const apiMutation = useApiMutation<any, any, any>({
+  const apiMutation = useApiMutation<
+    { data?: UserState; message?: string },
+    AxiosError<AuthErrorPayload>,
+    FormData | Record<string, unknown>
+  >({
     key: "social-login",
     method: "post",
     endpoint: "/social-login",
@@ -71,7 +112,6 @@ export const useSocialLogin = () => {
           dispatch(
             setAuth({
               user: data?.data,
-              token: data?.access_token || data?.token,
               remember: true,
             }),
           );
@@ -89,7 +129,6 @@ export const useSocialLogin = () => {
           dispatch(
             setAuth({
               user: data?.data,
-              token: data?.access_token || data?.token,
               remember: true,
             }),
           );
@@ -111,31 +150,45 @@ export const useSocialLogin = () => {
     },
   });
 
-  const mutate = (variables: any, options?: any) => {
-    let payload = variables;
+  const mutate = (
+    variables: FormData | Record<string, unknown>,
+    options?: MutateOptions<
+      { data?: UserState; message?: string },
+      AxiosError<AuthErrorPayload>,
+      FormData | Record<string, unknown>
+    >
+  ) => {
+    let payload: FormData | Record<string, unknown> = variables;
     if (
       !(variables instanceof FormData) &&
       variables &&
       typeof variables === "object"
     ) {
       const formData = new FormData();
-      formData.append("provider", variables.provider || "google");
-      formData.append("token", variables.token);
+      formData.append("provider", (variables.provider as string) || "google");
+      formData.append("token", (variables.token as string) || "");
       payload = formData;
     }
     return apiMutation.mutate(payload, options);
   };
 
-  const mutateAsync = async (variables: any, options?: any) => {
-    let payload = variables;
+  const mutateAsync = async (
+    variables: FormData | Record<string, unknown>,
+    options?: MutateOptions<
+      { data?: UserState; message?: string },
+      AxiosError<AuthErrorPayload>,
+      FormData | Record<string, unknown>
+    >
+  ) => {
+    let payload: FormData | Record<string, unknown> = variables;
     if (
       !(variables instanceof FormData) &&
       variables &&
       typeof variables === "object"
     ) {
       const formData = new FormData();
-      formData.append("provider", variables.provider || "google");
-      formData.append("token", variables.token);
+      formData.append("provider", (variables.provider as string) || "google");
+      formData.append("token", (variables.token as string) || "");
       payload = formData;
     }
     return apiMutation.mutateAsync(payload, options);
@@ -192,12 +245,11 @@ export const useRegisterEmailVerification = () => {
         dispatch(
           setAuth({
             user: data?.data,
-            token: data?.access_token,
             remember: false,
           }),
         );
       },
-      onError: (error: any) => {
+      onError: (error: AxiosError<AuthErrorPayload>) => {
         if (error?.response?.status === 429) {
           toast.error(
             error?.response?.data?.message ||
@@ -229,7 +281,7 @@ export const useRegisterResendOtp = () => {
         const message = data?.message || "OTP code resent successfully";
         toast.success(message);
       },
-      onError: (error: any) => {
+      onError: (error: AxiosError<AuthErrorPayload>) => {
         if (error?.response?.status === 429) {
           toast.error(
             error?.response?.data?.message ||
@@ -254,18 +306,22 @@ export const useRegisterResendOtp = () => {
 export const useLogout = () => {
   const router = useRouter();
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
 
   return useApiMutation({
     key: "logout",
     method: "post",
     endpoint: "/auth/logout",
+    isPrivate: true,
     options: {
       onSuccess: () => {
+        queryClient.clear();
         dispatch(logout());
         router.push("/auth/login");
         toast.success("Logged out successfully");
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
+        queryClient.clear();
         dispatch(logout());
         router.push("/auth/login");
         console.log("Logout error:", error);
@@ -285,7 +341,7 @@ export const useForgotPassword = () => {
         const message = data?.message || "OTP sent to your email";
         toast.success(message);
       },
-      onError: (error: any) => {
+      onError: (error: AxiosError<AuthErrorPayload>) => {
         if (error?.response?.status === 429) {
           toast.error(
             error?.response?.data?.message ||
@@ -315,7 +371,7 @@ export const useVerifyOtp = () => {
       onSuccess: (data) => {
         toast.success(data?.message || "OTP verified successfully");
       },
-      onError: (error: any) => {
+      onError: (error: AxiosError<AuthErrorPayload>) => {
         if (error?.response?.status === 429) {
           toast.error(
             error?.response?.data?.message ||
@@ -345,7 +401,7 @@ export const useResetPassword = () => {
       onSuccess: (data) => {
         toast.success(data?.message || "Password reset successfully");
       },
-      onError: (error: any) => {
+      onError: (error: AxiosError<AuthErrorPayload>) => {
         if (error?.code === "ERR_NETWORK") {
           toast.error("Please check your network connection");
         } else {

@@ -9,8 +9,13 @@ export const injectStore = (s: AppStore) => {
   storeInstance = s;
 };
 
+const API_HOST =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://api.tixolve.com"
+    : "http://illogri-issue.test");
 const axiosPrivate = axios.create({
-  baseURL: `${process.env.NEXT_PUBLIC_BASE_URL}/api`,
+  baseURL: `${API_HOST}/api`,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -20,6 +25,7 @@ const axiosPrivate = axios.create({
   withCredentials: true,
 });
 
+// REQUEST INTERCEPTOR
 axiosPrivate.interceptors.request.use(
   (config) => {
     const token = store.getState().auth.token;
@@ -28,13 +34,12 @@ axiosPrivate.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// REQUEST INTERCEPTOR
+// RESPONSE INTERCEPTOR
 axiosPrivate.interceptors.response.use(
   (response) => response,
 
@@ -51,7 +56,10 @@ axiosPrivate.interceptors.response.use(
 
     // 401 Unauthorized
     if (status === 401) {
-      // 1. Clear the local state/token
+      const hadUser = Boolean(
+        (storeInstance?.getState() || store.getState()).auth.user,
+      );
+      // 1. Clear the local state/user
       (storeInstance?.dispatch || store.dispatch)(logout());
       if (typeof window !== "undefined") {
         const currentPath = window.location.pathname;
@@ -63,7 +71,9 @@ axiosPrivate.interceptors.response.use(
         const isPublicRoute = publicRoutes.includes(currentPath);
 
         if (!isPublicRoute) {
-          toast.error("Session expired. Please log in again.");
+          if (hadUser) {
+            toast.error("Session expired. Please log in again.");
+          }
 
           const searchParams = new URLSearchParams({
             callbackUrl: currentPath,

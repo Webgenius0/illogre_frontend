@@ -1,25 +1,50 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, InfoIcon } from "lucide-react";
-import google from "../../assets/google.png";
 import Image from "next/image";
-import { useLogin, useSocialLogin } from "@/hooks/auth.api";
-import { useGoogleLogin } from "@react-oauth/google";
-import { toast } from "sonner";
+import { useCurrentUser, useLogin } from "@/hooks/auth.api";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
 import { Alert, AlertTitle } from "../ui/alert";
+import { GoogleSignInButton } from "../shared/GoogleSignInButton";
+
+interface ValidationErrors {
+  email?: string[];
+  password?: string[];
+}
 
 export default function LoginForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: currentUser, isLoading: isCheckingAuth } = useCurrentUser();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {},
   );
-  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // If already authenticated, redirect to destination
+  useEffect(() => {
+    if (currentUser) {
+      const callbackUrl = searchParams.get("callbackUrl");
+      if (callbackUrl) {
+        router.replace(callbackUrl);
+      } else if (currentUser.is_subscribed) {
+        if (currentUser.role === "owner") {
+          router.replace("/");
+        } else {
+          router.replace("/tickets");
+        }
+      } else {
+        router.replace("/auth/register/plans");
+      }
+    }
+  }, [currentUser, router, searchParams]);
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -38,26 +63,6 @@ export default function LoginForm() {
   };
 
   const loginMutation = useLogin();
-  const socialLoginMutation = useSocialLogin();
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: (tokenResponse) => {
-      setGoogleLoading(true);
-      socialLoginMutation.mutate(
-        { token: tokenResponse.access_token },
-        {
-          onSettled: () => {
-            setGoogleLoading(false);
-          },
-        },
-      );
-    },
-    onError: (error) => {
-      console.error("Google OAuth error:", error);
-      toast.error("Google sign-in was unsuccessful.");
-      setGoogleLoading(false);
-    },
-  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +70,16 @@ export default function LoginForm() {
       loginMutation?.mutate({ email, password });
     }
   };
+
+  if (isCheckingAuth || currentUser) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center p-4">
+        <Spinner className="size-8 text-primary" />
+      </div>
+    );
+  }
+
+  const backendErrors = (loginMutation?.error as { errors?: ValidationErrors })?.errors;
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-4 relative overflow-hidden font-urbanist">
@@ -87,12 +102,12 @@ export default function LoginForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="yourname@mail.com"
                   className={`w-full px-5 h-10 py-4 bg-white/30 border ${
-                    errors.email ? "border-red-500" : "border-white"
+                    errors.email || backendErrors?.email?.[0] ? "border-red-500" : "border-white"
                   } rounded-md focus:outline-none placeholder:text-gray-400`}
                 />
-                {errors.email && (
+                {(errors.email || backendErrors?.email?.[0]) && (
                   <p className="text-red-500 text-xs mt-1 ml-1">
-                    {errors.email}
+                    {errors.email || backendErrors?.email?.[0]}
                   </p>
                 )}
               </div>
@@ -109,7 +124,7 @@ export default function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
                   className={`w-full h-10 text-base px-5 py-4 bg-white/30 border ${
-                    errors.password ? "border-red-500" : "border-white"
+                    errors.password || backendErrors?.password?.[0] ? "border-red-500" : "border-white"
                   } rounded-md focus:outline-none placeholder:text-gray-400`}
                 />
                 <button
@@ -120,9 +135,9 @@ export default function LoginForm() {
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
               </div>
-              {errors.password && (
+              {(errors.password || backendErrors?.password?.[0]) && (
                 <p className="text-red-500 text-xs mt-1 ml-1">
-                  {errors.password}
+                  {errors.password || backendErrors?.password?.[0]}
                 </p>
               )}
               <div className="flex justify-end">
@@ -181,31 +196,7 @@ export default function LoginForm() {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-4">
-            <button
-              type="button"
-              disabled={googleLoading || socialLoginMutation.isPending}
-              onClick={() => {
-                setGoogleLoading(true);
-                googleLogin();
-              }}
-              className="flex items-center justify-center gap-3 py-2 px-4 bg-white/60 border border-white rounded-md hover:bg-white/80 transition-all duration-300 shadow-sm font-medium text-gray-700 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {googleLoading || socialLoginMutation.isPending ? (
-                <>
-                  <Spinner className="w-4 h-4" />
-                  <span>Connecting to Google...</span>
-                </>
-              ) : (
-                <>
-                  <Image src={google} alt="Google" className="w-6.5" />
-                  Google
-                </>
-              )}
-            </button>
-            {/* <button className="flex items-center justify-center gap-3 py-2 px-4 bg-white/60 border border-white rounded-md hover:bg-white/80 transition-all duration-300 shadow-sm font-medium text-gray-700">
-              <Image src={apple} alt="Apple" className="w-5" />
-              Apple
-            </button> */}
+            <GoogleSignInButton />
           </div>
 
           <div className="mt-10 text-center">

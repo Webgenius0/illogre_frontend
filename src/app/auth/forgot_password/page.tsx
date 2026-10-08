@@ -1,6 +1,6 @@
 import ForgotPasswordFlow from "@/components/forgot_password/ForgotPasswordFlow";
 
-export default function page() {
+export default function Page() {
   return (
     <div>
       <ForgotPasswordFlow />

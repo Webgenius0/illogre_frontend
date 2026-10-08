@@ -119,8 +119,8 @@ export default function ForgotPasswordFlow() {
       verifyOtp(
         { email, otp: otp.join("") },
         {
-          onSuccess: (data) => {
-            setToken(data?.token);
+          onSuccess: (data: { data?: { token?: string }; token?: string }) => {
+            setToken(data?.data?.token || data?.token || "");
             setStep(3);
           },
         },
