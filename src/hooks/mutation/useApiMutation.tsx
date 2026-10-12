@@ -15,6 +15,7 @@ export function useApiQuery<TData = any, TError = any>({
   headers,
   enabled = true,
   options,
+  refreshInterval,
 }: QueryOptions<TData, TError>) {
   const axiosInstance = isPrivate ? axiosPrivate : axiosPublic;
 
@@ -29,6 +30,9 @@ export function useApiQuery<TData = any, TError = any>({
     },
     enabled: Boolean(enabled),
     staleTime: 10 * 1000,
+    refetchInterval: refreshInterval ?? options?.refetchInterval,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
     ...options,
   });
 }

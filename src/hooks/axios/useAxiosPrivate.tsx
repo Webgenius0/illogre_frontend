@@ -13,29 +13,24 @@ const API_HOST =
   process.env.NEXT_PUBLIC_BASE_URL ||
   (process.env.NODE_ENV === "production"
     ? "https://api.tixolve.com"
-    : "http://illogri-issue.test");
+    : "http://localhost:8000");
+
 const axiosPrivate = axios.create({
   baseURL: `${API_HOST}/api`,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
-    "ngrok-skip-browser-warning": "69420",
+    ...(process.env.NEXT_PUBLIC_ENABLE_NGROK_WARNING_SKIP === "true"
+      ? { "ngrok-skip-browser-warning": "true" }
+      : {}),
   },
   timeout: 30000,
   withCredentials: true,
 });
 
-// REQUEST INTERCEPTOR
+// REQUEST INTERCEPTOR — Pure cookie-based session architecture
 axiosPrivate.interceptors.request.use(
-  (config) => {
-    const token = store.getState().auth.token;
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    return config;
-  },
+  (config) => config,
   (error) => Promise.reject(error),
 );
 
@@ -67,8 +62,15 @@ axiosPrivate.interceptors.response.use(
           "/auth/login",
           "/auth/register",
           "/auth/register/email_verification",
+          "/auth/register/plans",
+          "/auth/forgot_password",
+          "/auth/callback",
+          "/auth/accept-invitation",
+          "/auth/accept-agent-invitation",
         ];
-        const isPublicRoute = publicRoutes.includes(currentPath);
+        const isPublicRoute = publicRoutes.some((route) =>
+          currentPath.startsWith(route),
+        );
 
         if (!isPublicRoute) {
           if (hadUser) {
@@ -81,9 +83,7 @@ axiosPrivate.interceptors.response.use(
 
           window.location.href = `/auth/login?${searchParams.toString()}`;
         } else {
-          // If they are on the Home page, maybe just a silent logout
-          // or a less intrusive message
-          console.warn("Session expired, but user is on a public page.");
+          console.warn("Session expired or unauthenticated on public page.");
         }
       }
 

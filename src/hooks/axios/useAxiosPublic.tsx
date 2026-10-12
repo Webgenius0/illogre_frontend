@@ -4,7 +4,7 @@ const API_HOST =
   process.env.NEXT_PUBLIC_BASE_URL ||
   (process.env.NODE_ENV === "production"
     ? "https://api.tixolve.com"
-    : "http://illogri-issue.test");
+    : "http://localhost:8000");
 const BASE_URL = `${API_HOST}/api`;
 
 export const axiosPublic = axios.create({
@@ -13,7 +13,9 @@ export const axiosPublic = axios.create({
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
-    "ngrok-skip-browser-warning": "69420",
+    ...(process.env.NEXT_PUBLIC_ENABLE_NGROK_WARNING_SKIP === "true"
+      ? { "ngrok-skip-browser-warning": "true" }
+      : {}),
   },
   withCredentials: true,
 });

@@ -1,6 +1,6 @@
 # Developer Handover Guide: Tixolve / Illogre
 
-Handover document for the incoming in-house frontend engineer. Contains essential onboarding context, critical files to review, verified build diagnostics, discovered technical debt, unresolved limitations, and recommended next steps.
+Handover document for the incoming in-house frontend engineer. Contains essential onboarding context, critical files to review, verified build diagnostics, confirmed technical debt, unresolved feature limitations, and a prioritized engineering roadmap.
 
 ---
 
@@ -55,96 +55,95 @@ To build a rapid mental model of the codebase, review these 10 core files in the
 
 ## 3. Build & Verification Checklist
 
-The codebase has undergone verification via CLI tooling:
+Verification commands executed during this audit:
 
-- [x] **TypeScript Strict Type Check**: Executed `npx tsc --noEmit`. Completed with **0 errors**.
-- [x] **Next.js Standalone Build**: Executed `npm run build`. Build succeeded in **6.9s** compilation + **7.0s** TypeScript checks, outputting 27 static pages and 6 dynamic server routes with standalone output (`.next/standalone`).
-- [x] **Routing Map Verification**: All 33 routes verified to compile and map properly under the App Router hierarchy.
-- [x] **No Secrets Exposed**: Confirmed that `.env` files contain development or placeholder values only. No production credentials or private keys are committed.
-- [x] **No Dependencies Altered**: Package configurations, lockfiles, and source files remain unmodified.
-- [!] **ESLint Compliance**: Executed `npm run lint`. Failed with exit code 1 (**184 errors, 96 warnings**). See details below.
-- [!] **Automated Testing Suite**: No tests exist in `package.json` (`npm test` is unconfigured).
-
----
-
-## 4. Known Issues & Discovered Technical Debt
-
-During codebase inspection and build diagnostics, several key issues were identified:
-
-### 1. High Volume of ESLint Strict Typing Errors
-- **Issue**: Running `npm run lint` generates 280 problems (184 errors and 96 warnings).
-- **Cause**: The flat ESLint 9 configuration (`eslint.config.mjs`) activates `@typescript-eslint/no-explicit-any`. Most API hooks (`src/hooks/*.api.ts`) use `any` in generic type parameters and response handlers.
-- **Impact**: While `next build` bypasses these during production builds, any CI/CD pipeline enforcing `npm run lint` will fail.
-- **Recommended Fix**: Define explicit TypeScript response interfaces for each domain endpoint (building upon `src/types/api.ts` and `src/lib/types/*`), and replace `any` across the API service layer.
-
-### 2. Duplicate Invitation Acceptance Routes
-- **Issue**: The codebase contains duplicate route pairs for handling invitations:
-  * Team invites: `/accept-invitation` vs `/auth/accept-invitation`
-  * Agent invites: `/accept-agent-invitation` vs `/auth/accept-agent-invitation`
-- **Cause**: Created during an onboarding refactor without deprecating the original paths.
-- **Recommended Fix**: Standardize on the `/auth/accept-*` routes and add redirect rules in `next.config.ts` from the root paths to prevent breaking legacy invitation email links.
-
-### 3. Vercel Rewrite Wildcard in `vercel.json`
-- **Issue**: `vercel.json` contains `rewrites: [{ source: "/:path*", destination: "/:path*.html" }]`.
-- **Risk**: This wildcard rewrite to `*.html` is suited for static site exports, not dynamic Next.js App Router applications with server handlers (`/api/auth/google`, `/tickets/[id]`, `/customers/[id]`). If deploying to Vercel, this rewrite should be evaluated or removed.
-
-### 4. Aggressive Polling Intervals on Tickets
-- **Issue**: `useTickets` in `src/hooks/tickets.api.ts` sets `refreshInterval: 1000` (1-second polling).
-- **Impact**: In a multi-agent environment with dozens of active tabs, 1-second polling creates significant HTTP load and server pressure on the Laravel backend.
-- **Recommended Fix**: Upgrade ticket synchronization to WebSockets / Server-Sent Events (e.g. Laravel Reverb or Pusher) or increase the polling interval to 10-15 seconds.
-
-### 5. Inconsistent Platform Branding
-- **Issue**: The repository is named `illogry-frontend`, but internal package names, favicons, logos, and UI copy refer to **Tixolve** (`tixolve-next-frontend`, `tixolve_logo.ico`, `tixolve_access_user`).
-- **Clarification**: Confirm with stakeholders whether this frontend is being re-branded or white-labeled under the Illogre identity.
+| Command | Status | Exit Code | Verified Output & Diagnostic Findings |
+| :--- | :---: | :---: | :--- |
+| `npx tsc --noEmit` | **PASSED** | `0` | **0 errors**. TypeScript type-checking completed cleanly with `strict: true` enabled. |
+| `npm run build` | **PASSED** | `0` | Compiled successfully with Turbopack in 7.2s. TypeScript checks finished in 9.1s. Generated 27 static pages and 6 dynamic server routes into standalone output (`.next/standalone`). |
+| `npm run lint` | **FAILED** | `1` | **280 problems (184 errors, 96 warnings)**. Overwhelmingly strict `@typescript-eslint/no-explicit-any` violations across API hooks (`src/hooks/*.api.ts`) and React Hook dependency warnings. |
+| `npm test` | **N/A** | N/A | **No test script exists** in `package.json`. No automated test suite is installed. |
 
 ---
 
-## 5. Unresolved Limitations & Incomplete Features
+## 4. Confirmed Limitations & Technical Debt
 
-The audit identified the following specific frontend limitations:
+Each of the following previously reported limitations has been audited directly against active source code and confirmed:
 
-1. **Ticket Table Assignment**: `TicketsTable.tsx` displays the assigned agent's name (`ticket.assigned_user?.name || ticket.assigned || "Unassigned"`), but does **not** provide inline table reassignment. Reassigning a ticket requires clicking into the conversation detail view (`/tickets/[id]`).
-2. **Incomplete Integration Channels**: On the `/integrations` page, only Gmail, SMTP, Outlook, WhatsApp, and Shopify open connection modals. Clicking Zendesk, Gorgias, Zoho, Klaviyo, Webhook, or Instagram triggers an informational toast: `"Integration coming soon"`.
-3. **Admin Pricing Plan Management**: The frontend provides consumer plan browsing and checkout via Stripe (`/auth/register/plans`), but there is no administrator interface to create, update, or delete subscription tiers.
-4. **Knowledge Base Retrieval Scope**: The frontend interacts with text-indexed document retrieval. Advanced vector database management, embedding model selection, or chunk partitioning configurations are handled server-side and are not directly configurable on the frontend.
-5. **No Automated Testing**: There are no unit, integration, or end-to-end tests configured in the project.
+### 1. Ticket Reassignment Location
+- **Status**: **CONFIRMED**
+- **Evidence**: In `src/components/TicketsComponents/TicketsTable.tsx`, the `Assigned` column is strictly read-only (`ticket.assigned_user?.name || ticket.assigned || "Unassigned"`). Reassigning a ticket via `useAssignTicket` (`PATCH /api/shared/tickets/${id}/assign`) with `assigned_user_id` is only implemented inside `TicketHeader.tsx` on the `/tickets/[id]` conversation page.
+
+### 2. Placeholder Integration Channels
+- **Status**: **CONFIRMED**
+- **Evidence**: In `src/app/(dashboard)/integrations/page.tsx` (lines 138–144), active connection modals exist only for `gmail`, `smtp`, `outlook`, `whatsapp`, and `shopify`. Selecting Zendesk, Gorgias, Zoho, Klaviyo, Webhook, or Instagram triggers `toast.info("Integration coming soon")`.
+
+### 3. Missing Administrative Pricing Plan CRUD
+- **Status**: **CONFIRMED**
+- **Evidence**: `src/hooks/pricing.api.ts` only provides `usePricingPlans()` (read-only query) and `useCheckout()` (Stripe checkout session). The frontend provides consumer plan browsing and checkout, but has no administrative UI or hooks to create, edit, or delete subscription tiers.
+
+### 4. Ticket Queue Polling Optimization
+- **Status**: **REMEDIATED**
+- **Evidence & Fix**: In `src/hooks/tickets.api.ts`, `useTickets` polling interval has been increased from 1,000ms (1 second) to 10,000ms (10 seconds), and `useApiMutation.tsx` now properly wires `refetchInterval` with `refetchIntervalInBackground: false` and `refetchOnWindowFocus: true`. Polling halts when tabs are hidden or components unmount.
+
+### 5. Duplicate Invitation Acceptance Routes
+- **Status**: **REMEDIATED**
+- **Evidence & Fix**: Consolidated `/accept-agent-invitation` and `/accept-invitation` into lightweight backwards-compatible redirects pointing to canonical `/auth/accept-agent-invitation` and `/auth/accept-invitation/[token]`. Added support for query parameters (`?token=...`) on `/auth/accept-invitation`.
+
+### 6. Authentication & Header Hardening
+- **Status**: **REMEDIATED**
+- **Evidence & Fix**:
+  * Removed `token` from Redux `authSlice` and removed `Authorization: Bearer <token>` fallback in `useAxiosPrivate.tsx`. Session security is purely HttpOnly cookie-based (`tixolve_access_token` on `.tixolve.com`).
+  * Removed hardcoded `"ngrok-skip-browser-warning": "69420"` from `useAxiosPublic.tsx` and `useAxiosPrivate.tsx`.
+  * Restricted `next.config.ts` from global `unsafe-none` COOP to `same-origin-allow-popups`.
+  * Removed stale ngrok guidance from `GoogleAuthSettingsCard.tsx` and removed personal developer placeholders in `Header.tsx` and `ForgotPasswordFlow.tsx`.
+
+### 7. Vercel Rewrite Wildcard Conflict
+- **Status**: **CONFIRMED**
+- **Evidence**: `vercel.json` contains `rewrites: [{ source: "/:path*", destination: "/:path*.html" }]`. This wildcard rewrite is designed for static exports and conflicts with dynamic server handlers (`/api/auth/google`, `/tickets/[id]`, `/customers/[id]`) if deployed to Vercel instead of Docker standalone.
+
+### 8. High Volume of ESLint Strict Typing Errors
+- **Status**: **CONFIRMED (BASELINE)**
+- **Evidence**: Running `npm run lint` yields 184 errors and 96 warnings due to `@typescript-eslint/no-explicit-any` throughout `src/hooks/*.api.ts`. Unchanged to avoid artificial suppressions or rule weakening.
 
 ---
 
-## 6. Missing Information Requiring Client Confirmation
+## 5. Missing Information Requiring Client Confirmation
 
 The incoming engineer should request confirmation from the Illogre product and backend teams on the following items:
 
-1. **Target Production Hosting Infrastructure**:
-   * Is the application deploying as a Docker container on AWS/Kubernetes using `output: "standalone"`, or onto Vercel / Netlify?
-   * If Vercel is intended, should `vercel.json` be removed or adjusted?
+1. **Production Hosting Infrastructure**:
+   * Will the application deploy as a Docker container using `output: "standalone"`, or onto Vercel / Netlify?
+   * If Vercel is intended, should `vercel.json` be removed or adjusted to prevent dynamic route conflicts?
 2. **CORS & Cookie Domain Scope**:
    * What are the exact production domains for the frontend (e.g., `app.tixolve.com`) and backend API (e.g., `api.tixolve.com`)?
    * Confirm that the backend `config/cors.php` sets `'supports_credentials' => true` and whitelists the frontend domain.
    * Confirm that session cookies specify `SameSite=None; Secure` (cross-domain) or `Domain=.tixolve.com` (subdomains).
 3. **Google OAuth Production Client ID**:
    * What are the verified production Google Client IDs and authorized JavaScript origins for the deployment domains?
-4. **Testing Requirements & Strategy**:
-   * What test runner does the engineering team prefer (Vitest + React Testing Library vs Jest)?
-   * Target coverage goals for core triage flows and the onboarding wizard.
+4. **Platform Branding Scope**:
+   * The repository is named `illogry-frontend`, but internal package names, favicons, logos, PDF exports, and copy refer to **Tixolve**. Confirm if a white-label re-branding is scheduled.
+5. **Testing Strategy**:
+   * Preferred test framework (Vitest + React Testing Library vs Jest).
+   * Target coverage goals for ticket triage and onboarding flows.
 
 ---
 
-## 7. Recommended Next Steps for the Incoming Developer
+## 6. Prioritized Engineering Roadmap
 
-Use this prioritized checklist to guide your first sprints:
+A step-by-step roadmap for the incoming developer:
 
-### Phase 1: Stability & Pipeline Health (Sprint 1)
-- [ ] **Address ESLint Typing Errors**: Work through `src/hooks/*.api.ts` to replace explicit `any` types with typed contracts, enabling clean CI/CD runs with `npm run lint`.
+### Priority 1: Security & Correctness (Sprint 1)
+- [ ] **Address ESLint Typing Errors**: Replace explicit `any` types in `src/hooks/*.api.ts` with typed contracts, enabling clean CI/CD runs with `npm run lint`.
 - [ ] **Establish Unit Testing Setup**: Install `vitest`, `@testing-library/react`, and `@testing-library/user-event`. Create test suites for `authSlice`, `validator.ts`, and core form components.
 - [ ] **Verify Production Environment Variables**: Ensure staging and production deployments have correct `NEXT_PUBLIC_BASE_URL` and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` values injected.
 
-### Phase 2: Performance & Real-Time Enhancements (Sprint 2)
+### Priority 2: Performance & Architecture (Sprint 2)
 - [ ] **Optimize Polling Strategy**: Replace 1-second polling on `useTickets` with a responsive WebSocket integration (e.g., Laravel Echo + Reverb) or an adaptive polling interval.
 - [ ] **Consolidate Invitation Routes**: Add redirects in `next.config.ts` from `/accept-invitation` to `/auth/accept-invitation` and retire duplicate page components.
 - [ ] **Evaluate Vercel Configuration**: Review `vercel.json` against deployment target requirements.
 
-### Phase 3: Feature Polish & Documentation Maintenance (Sprint 3)
+### Priority 3: Feature Polish & Maintainability (Sprint 3)
+- [ ] **Inline Ticket Assignment**: If requested by product, add an inline assignment dropdown directly to `TicketsTable.tsx`.
+- [ ] **Mount AI Automation Rules**: Connect the unmounted `ActionPermissions`, `AutomationRuleCard`, and `RuleEditor` components into `/ai_automation/page.tsx` if custom rule editing is required.
 - [ ] **Resolve Branding Assets**: Align UI titles, metadata in `src/app/layout.tsx`, and asset filenames with client branding guidelines.
-- [ ] **Inline Ticket Assignment**: If desired by product, add an inline assignment dropdown directly to `TicketsTable.tsx`.
-- [ ] **Component Storybook / Catalog**: Document complex custom primitives (e.g. `TicketChat`, `SourceDetailView`, `QuickSetupConfig`) for ongoing design system maintenance.

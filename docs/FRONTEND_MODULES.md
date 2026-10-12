@@ -1,10 +1,66 @@
 # Frontend Modules Guide: Tixolve / Illogre
 
-Module-by-module reference detailing UI components, routing, data sources, API dependencies, business rules, and source file locations.
+Module-by-module reference detailing UI components, routing, data sources, API dependencies, business rules, feature implementation statuses, and source file locations.
 
 ---
 
-## 1. Executive Overview Module
+## 1. Feature Implementation Status Matrix
+
+Every major module and sub-feature in the Tixolve frontend has been audited against actual source code and classified using the standard 6-tier readiness taxonomy:
+
+1. **Implemented and code-verified**: Complete end-to-end integration with working UI, custom hooks, and active backend API calls.
+2. **Partially implemented**: Core functionality exists, but specific workflows (such as inline table editing or component mounting) are incomplete.
+3. **UI only / backend integration unverified**: User interface exists, but is currently commented out, disabled, or lacks an active API hook.
+4. **Coming soon / placeholder**: Explicitly stubbed in code with user-facing "Coming soon" toasts or placeholder cards.
+5. **Not implemented**: Feature is absent from the frontend codebase.
+6. **Requires external credentials or infrastructure**: Code implementation is complete, but relies on third-party service configuration (Google OAuth, Shopify Partner App, Stripe Portal).
+
+### Comprehensive Status Audit
+
+| Module / Feature | Route / Component | Verified Status | Evidence & Code References |
+| :--- | :--- | :---: | :--- |
+| **Email/Password Login** | `/auth/login` | **1. Implemented and code-verified** | `LoginForm.tsx`, `useLogin`, `POST /api/auth/login`. |
+| **Multi-Step Registration** | `/auth/register/*` | **1. Implemented and code-verified** | `RegisterForm.tsx`, `useRegister`, `POST /api/auth/register`. |
+| **6-Digit Email OTP Verification** | `/auth/register/email_verification` | **1. Implemented and code-verified** | `EmailVerification.tsx`, `useRegisterEmailVerification`, `POST /api/auth/register/verify-otp`. Exactly 6 digits with auto-advancing inputs. |
+| **OTP Resend (60s Cooldown & 429)** | `/auth/register/email_verification` | **1. Implemented and code-verified** | `useRegisterResendOtp`, `POST /api/auth/resend-otp`. 60s client timer and 429 rate limit error handling. |
+| **3-Step Password Reset Flow** | `/auth/forgot_password` | **1. Implemented and code-verified** | `ForgotPasswordFlow.tsx`, `useForgotPassword`, `useVerifyOtp`, `useResetPassword`. |
+| **Google OAuth Social Sign-In** | `/auth/login`, `/auth/callback` | **6. Requires external credentials or infrastructure** | `api/auth/google/route.ts`, `@react-oauth/google`, `useSocialLogin` (`POST /api/social-login`). Requires valid Google Client ID in `.env`. |
+| **Session Termination (Logout)** | Global Header / Sidebar | **1. Implemented and code-verified** | `LogoutModal.tsx`, `useLogout`, `POST /api/auth/logout`. Clears Redux state, query cache, and triggers backend cookie invalidation. |
+| **User Profile Hydration** | `DashboardLayout` | **1. Implemented and code-verified** | `useCurrentUser`, `GET /api/user`. Validates session and syncs Redux `setUser`. |
+| **Overview KPI Cards** | `/` | **1. Implemented and code-verified** | `StatsOverview.tsx`, `useOwnerOverview`, `GET /api/owner/dashboard/overview`. |
+| **Overview Charts (Volume & Resolution)** | `/` | **1. Implemented and code-verified** | `TicketVolumeChart.tsx`, `ResolutionRateChart.tsx` (Recharts). |
+| **Overview Date Range Selector** | `/` | **3. UI only / backend integration unverified** | `<Select defaultValue="7days">` in `src/app/(dashboard)/page.tsx` (lines 34–42) is currently commented out in JSX. |
+| **Ticket Queue with Search & Filters** | `/tickets` | **1. Implemented and code-verified** | `TicketsTable.tsx`, `useTickets`, `GET /api/shared/tickets`. Polled every 1000ms. |
+| **Ticket Reassignment (Detail View)** | `/tickets/[id]` | **1. Implemented and code-verified** | `TicketHeader.tsx`, `useAssignTicket`, `PATCH /api/shared/tickets/{id}/assign`. Supports `assigned_user_id` and named assignee. |
+| **Ticket Reassignment (Inline Table)** | `/tickets` | **5. Not implemented** | `TicketsTable.tsx` provides read-only display (`ticket.assigned_user?.name || ticket.assigned || "Unassigned"`); reassignment requires opening the ticket detail view. |
+| **Conversation Chat & Tiptap Editor**| `/tickets/[id]` | **1. Implemented and code-verified** | `TicketChat.tsx`, Tiptap WYSIWYG editor. Supports public replies (`POST .../reply`) and internal notes (`POST .../internal-notes`). |
+| **AI Sentiment & Intent Analysis** | `/tickets/[id]` | **1. Implemented and code-verified** | `TicketAIAnalysis.tsx`. Displays confidence, sentiment, intent, and suggested answer. |
+| **1-Click Approve AI Suggestion** | `/tickets/[id]` | **1. Implemented and code-verified** | `handleApproveSuggested` in `TicketDetailsPage`. Switches mode to public and populates Tiptap editor. |
+| **Customer Shopify Context in Ticket** | `/tickets/[id]` | **1. Implemented and code-verified** | `TicketCustomerInfo.tsx`. Displays customer profile and recent orders. |
+| **Customer Directory CRUD** | `/customers`, `/customers/[id]` | **1. Implemented and code-verified** | `CustomerTable.tsx`, `CustomerDetailsView.tsx`, `AddEditCustomerModal.tsx`, `useCustomers`, `useCreateCustomer`, `useUpdateCustomer`, `useDeleteCustomer`. |
+| **Knowledge Base Document Ingestion** | `/knowledge_base` | **1. Implemented and code-verified** | `AddSourceModal.tsx`, `useAddKnowledgeSource` (`POST /api/{prefix}/knowledge-base`, multipart/form-data). |
+| **Text-Indexed Document Retrieval** | `/knowledge_base/[id]` | **1. Implemented and code-verified** | `SourceDetailView.tsx`, `ArticleTable.tsx`, `useKnowledgeBaseDetails`. Chunks and indexing progress displayed. |
+| **Interactive Test Query Console** | `/knowledge_base/[id]` | **1. Implemented and code-verified** | `SourceDetailView.tsx`, `useTestKnowledgeQuery` (`POST .../test-query`). Displays AI response, latency, model, and index status. |
+| **Vector DB / Embedding Pipeline** | N/A | **5. Not implemented** | The frontend treats retrieval strictly as text-indexed; vector database configuration and embedding generation are backend-managed. |
+| **AI Mode & Threshold Sliders** | `/ai_automation` | **1. Implemented and code-verified** | `QuickSetupConfig.tsx`, `useAutomationSettings`, `useSaveAutomationSettings`. Configures Copilot/Autonomous modes and confidence zones. |
+| **Custom Rule Editor & Permissions** | `/ai_automation` | **2. Partially implemented** | `ActionPermissions.tsx`, `AutomationRuleCard.tsx`, `RuleEditor.tsx` exist as components, but are not mounted in `/ai_automation/page.tsx` (only `QuickSetupConfig` is currently mounted). |
+| **Manual Mailbox Synchronization** | `/integrations` | **1. Implemented and code-verified** | "Sync Inbound Mailbox" button in header calls `useFetchEmails` (`POST /api/owner/integrations/email/fetch`). |
+| **Active Channel Integrations** | `/integrations` | **1. Implemented and code-verified** | `ConnectIntegrationModal.tsx`, `useConnectIntegration`. Working modals for Gmail, SMTP, Outlook, and WhatsApp. |
+| **Shopify OAuth Integration** | `/integrations` | **6. Requires external credentials or infrastructure** | `ShopifyConnectModal.tsx`, `useConnectShopify` (`POST /api/owner/shopify/install`). Requires live Shopify Partner App credentials. |
+| **Third-Party Helpdesk Integrations** | `/integrations` | **4. Coming soon / placeholder** | Zendesk, Gorgias, Zoho, Klaviyo, Webhooks, Instagram trigger `toast.info("Integration coming soon")`. |
+| **Team Roster & Invitations** | `/team` | **1. Implemented and code-verified** | `TeamTable.tsx`, `InviteMemberModal.tsx`, `EditMemberModal.tsx`, `DeleteMemberModal.tsx`, `useTeamOverview`, `useInviteTeamMember`, `useUpdateTeamRole`, `useRemoveTeamMember`. |
+| **Subscription Overview & Quotas** | `/billing` | **1. Implemented and code-verified** | `ActiveSubscriptionCard.tsx`, `UsageCard.tsx`, `useBillingOverview`. |
+| **Stripe Billing Portal Redirect** | `/billing` | **6. Requires external credentials or infrastructure** | `useBillingPortal` (`POST /api/owner/billing/portal`). Requires configured Stripe customer portal on backend. |
+| **Cancel / Resume Auto-Renewal** | `/billing` | **1. Implemented and code-verified** | `useCancelSubscription`, `useResumeSubscription`. |
+| **Consumer Plan Selection & Checkout**| `/auth/register/plans` | **1. Implemented and code-verified** | `usePricingPlans`, `useCheckout` (`POST /api/auth/register/checkout`). |
+| **Admin Pricing Plan CRUD** | N/A | **5. Not implemented** | No frontend UI or hooks exist to create, edit, or delete subscription tiers. |
+| **Branded Analytics PDF Export** | `/analytics` | **1. Implemented and code-verified** | `handleExportPDF` in `AnalyticsPage`. Generates Tixolve-branded PDF report (`#cae555`). |
+| **Branded Invoice PDF Export** | `/billing` | **1. Implemented and code-verified** | `generateInvoicePDF` in `BillingHistory.tsx`. Generates Tixolve-branded invoice PDF (`#B2E08A`). |
+| **Workspace & Profile Settings** | `/settings` | **1. Implemented and code-verified** | `GeneralTab.tsx`, `WorkspaceTab.tsx`, `AISettingsTab.tsx`, `NotificationsTab.tsx`, `SecurityTab.tsx`, `GoogleAuthSettingsCard.tsx`. |
+
+---
+
+## 2. Executive Overview Module
 
 ### Purpose & Scope
 Provides workspace owners with an executive summary of customer service operations, ticket inflow, AI automation resolution rates, and recently submitted tickets.
@@ -27,10 +83,11 @@ Provides workspace owners with an executive summary of customer service operatio
 - **Access Rule**: Accessible exclusively to users with `role === "owner"`. Support Managers and Agents are automatically routed to `/tickets`.
 - **Loading State**: Displays skeleton placeholders while overview metrics load.
 - **Empty States**: Renders placeholders when no tickets have been ingested yet.
+- **Limitation**: The date range selector (`<Select defaultValue="7days">`) is commented out in JSX and does not currently filter overview data.
 
 ---
 
-## 2. Tickets & Conversation Helpdesk Module
+## 3. Tickets & Conversation Helpdesk Module
 
 ### Purpose & Scope
 The core workspace triage engine. Enables support agents, managers, and owners to view incoming tickets across email and connected channels, inspect conversation histories, draft rich-text replies, log internal notes, approve AI suggested answers, and reassign tickets.
@@ -57,7 +114,7 @@ The core workspace triage engine. Enables support agents, managers, and owners t
   * `useAddInternalNote(id)` (`src/hooks/tickets.api.ts`)
   * `useUpdateTicketStatus(id)` (`src/hooks/tickets.api.ts`)
   * `useAssignTicket(id)` (`src/hooks/tickets.api.ts`)
-  * `useTeamOverview()` (`src/hooks/team.api.ts`) - Used by `TicketHeader` to populate agent assignment choices.
+  * `useTeamOverview()` (`src/hooks/team.api.ts`) - Populates assignee choices in `TicketHeader`.
 - **Query Keys**: `["shared-tickets", params]`, `["ticket-details", id]`
 - **Endpoints**: `GET /api/shared/tickets`, `GET /api/shared/tickets/{id}`, `POST /api/shared/tickets/{id}/reply`, `POST /api/shared/tickets/{id}/internal-notes`, `PATCH /api/shared/tickets/{id}/status`, `PATCH /api/shared/tickets/{id}/assign`
 
@@ -76,7 +133,7 @@ The core workspace triage engine. Enables support agents, managers, and owners t
 
 ---
 
-## 3. Knowledge Base Module
+## 4. Knowledge Base Module
 
 ### Purpose & Scope
 Manages the documentation and policy data that powers the platform's AI answer generation. Allows owners and managers to upload documents (PDF, TXT) or paste raw text, view text-indexing status, trigger re-indexing, and interactively test queries against indexed document chunks.
@@ -111,11 +168,12 @@ Manages the documentation and policy data that powers the platform's AI answer g
 ### Business Rules & Retrieval Contract
 - **Text-Indexed Retrieval**: Documents are ingested, processed, and text-indexed. In `SourceDetailView.tsx`, the system explicitly describes processing as: *"Documents are processed and text-indexed so the AI can retrieve relevant information when generating responses."*
 - **Query Testing Contract**: Submitting a test query calls `POST /api/{prefix}/knowledge-base/{id}/test-query` and renders `apiTestResponse.ai_response` alongside response metadata (`sources_used.response_time`, `sources_used.model`, and `sources_used.embedding` which defaults to `"Text-Indexed"`).
+- **Backend Responsibility**: Embedding pipelines, chunk vectorization, and vector store configurations are backend responsibilities; the frontend interacts purely with text-indexed status flags and query testing endpoints.
 - **Role Restrictions**: Restricted to `owner` and `Support Manager`. Support Agents are blocked.
 
 ---
 
-## 4. AI Automation Module
+## 5. AI Automation Module
 
 ### Purpose & Scope
 Allows administrators to calibrate AI confidence thresholds and select operational automation modes that control how autonomously AI responds to incoming customer inquiries.
@@ -125,9 +183,9 @@ Allows administrators to calibrate AI confidence thresholds and select operation
 - **Page File**: `src/app/(dashboard)/ai_automation/page.tsx`
 - **Components**:
   * `QuickSetupConfig.tsx` (`src/components/automation/QuickSetupConfig.tsx`): Mode selection cards (`Copilot`, `Autonomous`) and slider controls for Human-Led (<60%), AI-Assisted (60-80%), and Fully Automated (>80%) confidence zones.
-  * `AutomationRuleCard.tsx` (`src/components/automation/AutomationRuleCard.tsx`): Display cards for active automation rules.
-  * `ActionPermissions.tsx` (`src/components/automation/ActionPermissions.tsx`): Risk-level toggles (High, Medium, Low risk permissions).
-  * `RuleEditor.tsx` (`src/components/automation/RuleEditor.tsx`): Parameter condition builder for custom triggers.
+  * `AutomationRuleCard.tsx` (`src/components/automation/AutomationRuleCard.tsx`): Display cards for active automation rules (Component created, but unmounted in active page).
+  * `ActionPermissions.tsx` (`src/components/automation/ActionPermissions.tsx`): Risk-level toggles (Unmounted in active page).
+  * `RuleEditor.tsx` (`src/components/automation/RuleEditor.tsx`): Parameter condition builder (Unmounted in active page).
 
 ### Data Sources & API Dependencies
 - **Hooks**:
@@ -139,10 +197,11 @@ Allows administrators to calibrate AI confidence thresholds and select operation
 ### Business Rules & UX Logic
 - **Mode Switching Logic**: Selecting a preset mode (`Copilot` vs `Autonomous`) automatically resets the slider thresholds based on the mode's defined default zones from the backend response.
 - **Unsaved Changes Bar**: Adjusting slider thresholds reveals an action bar with "Cancel" and "Save Changes" buttons.
+- **Implementation Status**: Only `QuickSetupConfig` is currently mounted on `/ai_automation/page.tsx`. Custom rule cards and action permissions components exist in `src/components/automation/` but are not rendered on the page.
 
 ---
 
-## 5. Customer Management Module
+## 6. Customer Management Module
 
 ### Purpose & Scope
 Maintains a customer directory synchronized from e-commerce platforms (e.g. Shopify) and inbound ticket channels, allowing staff to view customer history, contact details, total lifetime spend, and edit contact information.
@@ -170,12 +229,9 @@ Maintains a customer directory synchronized from e-commerce platforms (e.g. Shop
 - **Query Keys**: `["owner-customers", params]`, `["customer-details", id]`
 - **Endpoints**: Role-prefixed: `GET /api/{prefix}/customers`, `POST /api/{prefix}/customers`, `PATCH /api/{prefix}/customers/{id}`, `DELETE /api/{prefix}/customers/{id}`.
 
-### Business Rules & UX Logic
-- **Permissions**: Owners and Managers have full create/update/delete permissions; Support Agents have read-only access.
-
 ---
 
-## 6. Analytics & Reporting Module
+## 7. Analytics & Reporting Module
 
 ### Purpose & Scope
 Provides operational business intelligence regarding team performance, AI accuracy, resolution comparisons, and category distributions with date range filtering and client-side PDF export.
@@ -201,7 +257,7 @@ Provides operational business intelligence regarding team performance, AI accura
 
 ---
 
-## 7. Integrations Hub Module
+## 8. Integrations Hub Module
 
 ### Purpose & Scope
 Manages omnichannel connections feeding tickets into the platform, including e-commerce platforms (Shopify), email inboxes (Gmail, Outlook, custom IMAP/SMTP), and communication channels.
@@ -232,7 +288,7 @@ Manages omnichannel connections feeding tickets into the platform, including e-c
 
 ---
 
-## 8. Team Management Module
+## 9. Team Management Module
 
 ### Purpose & Scope
 Allows owners and managers to administer workspace staffing, invite new team members by email, adjust roles, and revoke member access.
@@ -258,7 +314,7 @@ Allows owners and managers to administer workspace staffing, invite new team mem
 
 ---
 
-## 9. Billing & Subscription Module
+## 10. Billing & Subscription Module
 
 ### Purpose & Scope
 Enables workspace owners to monitor subscription plans, review credit limits, track seat and ticket consumption, cancel or resume auto-renewal, and navigate to the Stripe Customer Portal.
@@ -286,7 +342,7 @@ Enables workspace owners to monitor subscription plans, review credit limits, tr
 
 ---
 
-## 10. Workspace Settings Module
+## 11. Workspace Settings Module
 
 ### Purpose & Scope
 Central control center for owner profile configuration, workspace details, AI defaults, security credentials, notification preferences, and Google OAuth credentials.
@@ -317,7 +373,7 @@ Central control center for owner profile configuration, workspace details, AI de
 
 ---
 
-## 11. Authentication & Onboarding Module
+## 12. Authentication & Onboarding Module
 
 ### Purpose & Scope
 Public entry points for user registration, multi-factor email OTP verification, subscription plan selection, session login, Google OAuth callbacks, and token-based invite acceptance.

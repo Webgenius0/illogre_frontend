@@ -164,7 +164,7 @@ export default function ForgotPasswordFlow() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="rifatsf101@gmail.com"
+                placeholder="name@company.com"
                 required
                 className="w-full px-5 h-12 bg-white/40 border border-white/60 rounded-md shadow-sm focus:outline-none placeholder:text-gray-400"
               />

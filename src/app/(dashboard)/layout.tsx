@@ -23,6 +23,8 @@ export default function DashboardLayout({
 
   const { data: currentUser, isLoading, isError } = useCurrentUser();
   const reduxUser = useSelector((state: RootState) => state.auth.user as UserState | null);
+
+  // Authoritative identity is confirmed by the backend session; reduxUser is used only for UI optimistic display during active sessions
   const activeUser = currentUser || reduxUser;
 
   const restrictedRoutes = [
@@ -38,7 +40,7 @@ export default function DashboardLayout({
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Sync authenticated user into Redux store
+  // Sync verified authenticated user into Redux store
   useEffect(() => {
     if (currentUser) {
       dispatch(setUser(currentUser));
@@ -49,8 +51,10 @@ export default function DashboardLayout({
   useEffect(() => {
     if (isError) {
       dispatch(logout());
-      const loginUrl = `/auth/login?callbackUrl=${encodeURIComponent(pathname)}`;
-      router.replace(loginUrl);
+      if (typeof window !== "undefined" && !pathname.startsWith("/auth")) {
+        const loginUrl = `/auth/login?callbackUrl=${encodeURIComponent(pathname)}`;
+        router.replace(loginUrl);
+      }
     }
   }, [isError, pathname, router, dispatch]);
 
@@ -74,7 +78,8 @@ export default function DashboardLayout({
     );
   }
 
-  if (isError || !activeUser) {
+  // Never render dashboard content if server verification failed or no verified user exists
+  if (isError || !currentUser) {
     return null;
   }
 

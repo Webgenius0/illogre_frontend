@@ -66,7 +66,7 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
                 />
               </div>
               <h5 className="text-xs lg:text-sm font-normal hidden sm:block max-w-25 truncate">
-                {user?.name || "Rifat Ahamed"}
+                {user?.name || "Account"}
               </h5>
               <DownArrowSvg />
             </div>
@@ -76,10 +76,10 @@ export default function Header({ onMenuClick }: { onMenuClick?: () => void }) {
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
                   <p className="text-sm font-medium leading-none">
-                    {user?.name || "Rifat Ahamed"}
+                    {user?.name || "Account"}
                   </p>
                   <p className="text-xs leading-none text-muted-foreground truncate">
-                    {user?.email || "rifat@example.com"}
+                    {user?.email || ""}
                   </p>
                 </div>
               </DropdownMenuLabel>

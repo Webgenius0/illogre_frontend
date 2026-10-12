@@ -19,7 +19,6 @@ export interface UserState {
 
 export interface AuthState {
   user: UserState | null;
-  token: string | null;
   remember: boolean;
 }
 
@@ -35,7 +34,6 @@ const getInitialUser = (): UserState | null => {
 
 const initialState: AuthState = {
   user: getInitialUser(),
-  token: null,
   remember: Boolean(getInitialUser()),
 };
 
@@ -45,11 +43,10 @@ const authSlice = createSlice({
   reducers: {
     setAuth: (
       state,
-      action: PayloadAction<{ user?: UserState | null; token?: string; remember?: boolean }>
+      action: PayloadAction<{ user?: UserState | null; remember?: boolean }>
     ) => {
       const { user, remember } = action.payload;
       state.user = user ?? null;
-      state.token = null;
       state.remember = Boolean(remember);
 
       if (user) {
@@ -66,7 +63,6 @@ const authSlice = createSlice({
 
     logout: (state) => {
       state.user = null;
-      state.token = null;
       state.remember = false;
 
       removeCookie("tixolve_access_token");

@@ -320,9 +320,6 @@ export default function GoogleAuthSettingsCard() {
               <span className="ml-1 font-mono text-emerald-800 font-semibold bg-white px-1.5 py-0.5 rounded border border-emerald-200">
                 {redirectUri}
               </span>
-              <p className="mt-1 text-[10px] text-gray-500 font-sans">
-                💡 <em>Note: If testing via ngrok or staging, also add your ngrok/staging URL (e.g. <code className="bg-white px-1 py-0.5 rounded font-mono text-emerald-800 border border-emerald-200">https://your-ngrok-domain.ngrok-free.dev/auth/callback</code>) to Google Console.</em>
-              </p>
             </li>
             <li className="pl-1">
               Copy <strong className="text-gray-900">Client ID & Secret</strong> into this form and click <strong className="text-gray-900">Save Settings</strong>.

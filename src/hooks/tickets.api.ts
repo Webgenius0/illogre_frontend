@@ -14,7 +14,7 @@ export const useTickets = (params: any = {}) => {
     key: ["shared-tickets", params],
     endpoint: `/shared/tickets${queryParams ? `?${queryParams}` : ''}`,
     isPrivate: true,
-    refreshInterval: 1000,
+    refreshInterval: 10000,
   });
 };
 
