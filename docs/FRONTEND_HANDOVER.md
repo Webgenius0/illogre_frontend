@@ -60,9 +60,9 @@ Verification commands executed during this audit:
 | Command | Status | Exit Code | Verified Output & Diagnostic Findings |
 | :--- | :---: | :---: | :--- |
 | `npx tsc --noEmit` | **PASSED** | `0` | **0 errors**. TypeScript type-checking completed cleanly with `strict: true` enabled. |
-| `npm run build` | **PASSED** | `0` | Compiled successfully with Turbopack in 7.2s. TypeScript checks finished in 9.1s. Generated 27 static pages and 6 dynamic server routes into standalone output (`.next/standalone`). |
-| `npm run lint` | **FAILED** | `1` | **280 problems (184 errors, 96 warnings)**. Overwhelmingly strict `@typescript-eslint/no-explicit-any` violations across API hooks (`src/hooks/*.api.ts`) and React Hook dependency warnings. |
-| `npm test` | **N/A** | N/A | **No test script exists** in `package.json`. No automated test suite is installed. |
+| `npm run build` | **PASSED** | `0` | Compiled successfully with Turbopack in 11.2s. TypeScript checks finished in 7.2s. Generated 28 static pages and 6 dynamic server routes into standalone output (`.next/standalone`). |
+| `npm run lint` | **FAILED** | `1` | **279 problems (183 errors, 96 warnings)**. Overwhelmingly strict `@typescript-eslint/no-explicit-any` violations across legacy API hooks (`src/hooks/*.api.ts`) and React Hook dependency warnings. |
+| `npm test` | **N/A** | `1` | **No test script exists** in `package.json` (`npm error Missing script: "test"`). No automated test suite is installed. |
 
 ---
 

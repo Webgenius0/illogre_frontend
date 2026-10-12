@@ -30,7 +30,7 @@ Every major module and sub-feature in the Tixolve frontend has been audited agai
 | **Overview KPI Cards** | `/` | **1. Implemented and code-verified** | `StatsOverview.tsx`, `useOwnerOverview`, `GET /api/owner/dashboard/overview`. |
 | **Overview Charts (Volume & Resolution)** | `/` | **1. Implemented and code-verified** | `TicketVolumeChart.tsx`, `ResolutionRateChart.tsx` (Recharts). |
 | **Overview Date Range Selector** | `/` | **3. UI only / backend integration unverified** | `<Select defaultValue="7days">` in `src/app/(dashboard)/page.tsx` (lines 34–42) is currently commented out in JSX. |
-| **Ticket Queue with Search & Filters** | `/tickets` | **1. Implemented and code-verified** | `TicketsTable.tsx`, `useTickets`, `GET /api/shared/tickets`. Polled every 1000ms. |
+| **Ticket Queue with Search & Filters** | `/tickets` | **1. Implemented and code-verified** | `TicketsTable.tsx`, `useTickets`, `GET /api/shared/tickets`. Polled every 10,000ms (10s) with automatic background throttling (`refetchIntervalInBackground: false`). |
 | **Ticket Reassignment (Detail View)** | `/tickets/[id]` | **1. Implemented and code-verified** | `TicketHeader.tsx`, `useAssignTicket`, `PATCH /api/shared/tickets/{id}/assign`. Supports `assigned_user_id` and named assignee. |
 | **Ticket Reassignment (Inline Table)** | `/tickets` | **5. Not implemented** | `TicketsTable.tsx` provides read-only display (`ticket.assigned_user?.name || ticket.assigned || "Unassigned"`); reassignment requires opening the ticket detail view. |
 | **Conversation Chat & Tiptap Editor**| `/tickets/[id]` | **1. Implemented and code-verified** | `TicketChat.tsx`, Tiptap WYSIWYG editor. Supports public replies (`POST .../reply`) and internal notes (`POST .../internal-notes`). |

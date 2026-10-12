@@ -12,12 +12,14 @@ Comprehensive technical documentation is maintained in the [`docs/`](./docs) dir
 
 | Document | Description |
 | :--- | :--- |
-| **[FRONTEND_OVERVIEW.md](./docs/FRONTEND_OVERVIEW.md)** | System overview, verified tech stack versions, application lifecycle, role responsibilities, and backend communication. |
-| **[FRONTEND_ARCHITECTURE.md](./docs/FRONTEND_ARCHITECTURE.md)** | Architecture diagrams, Next.js 16 `proxy.ts`, HttpOnly cookie session model, routing guards, and state management. |
-| **[FRONTEND_SETUP.md](./docs/FRONTEND_SETUP.md)** | Node.js 20+ prerequisites, environment variables, development/build scripts, verified test/lint results, and standalone Docker deployment. |
-| **[FRONTEND_API_INTEGRATION.md](./docs/FRONTEND_API_INTEGRATION.md)** | Base URL resolution, dual Axios clients, interceptor pipeline, role-prefixed endpoints (`/owner`, `/manager`, `/agent`, `/shared`), and endpoint catalog. |
-| **[FRONTEND_MODULES.md](./docs/FRONTEND_MODULES.md)** | Module-by-module reference across all 11 domains (Overview, Tickets, Knowledge Base, Automation, Customers, Analytics, Integrations, Team, Billing, Settings, Onboarding). |
-| **[FRONTEND_HANDOVER.md](./docs/FRONTEND_HANDOVER.md)** | Handover guide for incoming developers, top 10 files to review, technical debt audit, unresolved limitations, and phased engineering roadmap. |
+| **[FRONTEND_OVERVIEW.md](./docs/FRONTEND_OVERVIEW.md)** | System overview, tech stack versions, lifecycle, role responsibilities, and architecture. |
+| **[FRONTEND_AUTHENTICATION.md](./docs/FRONTEND_AUTHENTICATION.md)** | HttpOnly cookie session model, Google OAuth, route guards, error interception, and security boundaries. |
+| **[FRONTEND_API_INTEGRATION.md](./docs/FRONTEND_API_INTEGRATION.md)** | Base URL resolution, dual Axios clients, CORS/credentials, role-prefixed endpoints, and API catalog. |
+| **[FRONTEND_MODULES.md](./docs/FRONTEND_MODULES.md)** | Feature-by-feature reference across all 11 modules with verified implementation classifications. |
+| **[FRONTEND_DEPLOYMENT.md](./docs/FRONTEND_DEPLOYMENT.md)** | Production topology (`app.tixolve.com`), containerization, standalone execution, and domain configurations. |
+| **[FRONTEND_SETUP.md](./docs/FRONTEND_SETUP.md)** | Node.js 20+ prerequisites, environment variables, development scripts, and verified build output. |
+| **[FRONTEND_HANDOVER.md](./docs/FRONTEND_HANDOVER.md)** | Practical handover guide for incoming developers, top files, known debt, and engineering roadmap. |
+| **[FRONTEND_TROUBLESHOOTING.md](./docs/FRONTEND_TROUBLESHOOTING.md)** | Incident diagnostics for sessions, CORS, OAuth, remote images, build failures, and polling. |
 
 ---
 
@@ -40,12 +42,21 @@ Comprehensive technical documentation is maintained in the [`docs/`](./docs) dir
 
 ---
 
+## Environment & URL Mapping
+
+| Environment | Frontend Host | Backend Host | Notes |
+| :--- | :--- | :--- | :--- |
+| **Local Development** | `http://localhost:3000` | `http://localhost:8000` | Standard developer setup |
+| **Production Application** | `https://app.tixolve.com` | `https://api.tixolve.com` (API)<br>`https://admin.tixolve.com` (Admin Panel) | Live tenant application |
+
+---
+
 ## Quick Start
 
 ### 1. Prerequisites
 - **Node.js**: `>= 20.9.0` (LTS recommended)
 - **Package Manager**: `npm >= 10.0.0` (uses `package-lock.json`)
-- **Backend API**: Running Laravel API server (local or tunnel)
+- **Backend API**: Running Laravel API server (`http://localhost:8000` locally)
 
 ### 2. Installation
 ```bash
@@ -57,7 +68,7 @@ npm install
 ### 3. Environment Configuration
 Create a `.env` file in the root directory:
 ```env
-# Backend API Base URL (Do not append /api; the client handles /api automatically)
+# Backend API Base URL (Do not append /api; Axios handles /api automatically)
 NEXT_PUBLIC_BASE_URL=http://localhost:8000
 
 # Optional: Google OAuth 2.0 Web Client ID
@@ -78,23 +89,29 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 | Script | Command | Purpose | Verified Status |
 | :--- | :--- | :--- | :---: |
 | `dev` | `npm run dev` | Starts Next.js development server with Turbopack. | Functional |
-| `build` | `npm run build` | Compiles production standalone bundle. | **PASSED** (0 errors) |
+| `build` | `npm run build` | Compiles production standalone bundle. | **PASSED** (0 errors, 11.2s Turbopack) |
 | `start` | `npm run start` | Serves compiled production build locally. | Functional |
-| `lint` | `npm run lint` | Runs ESLint 9 checks (`eslint.config.mjs`). | **FAILED** (280 issues, mostly `@typescript-eslint/no-explicit-any`) |
+| `lint` | `npm run lint` | Runs ESLint 9 checks (`eslint.config.mjs`). | **FAILED** (279 problems: 183 errors, 96 warnings from `@typescript-eslint/no-explicit-any`) |
 | `tsc` | `npx tsc --noEmit` | Runs full TypeScript type check. | **PASSED** (0 errors) |
+| `test` | `npm test` | Automated unit/integration tests. | **Not Configured** (Missing test script) |
 
 ---
 
 ## Key Architectural Principles
 
 1. **HttpOnly Cookie Authentication**:
-   Authentication tokens (`tixolve_access_token`) are issued and stored as server-side HttpOnly cookies. The browser transmits cookies automatically on cross-origin requests via `withCredentials: true`. Client-side JavaScript cannot read or clear the token directly; formal logout must call `POST /api/auth/logout`.
-2. **Client State vs. Server State**:
-   Redux Toolkit manages client authentication state and hydrates non-sensitive user metadata from the `tixolve_access_user` cookie. TanStack Query manages all server data caching, revalidation, and background polling (1-second ticket queue, 5-second active ticket, 30-second notifications).
-3. **Role-Prefixed Endpoints**:
+   Authentication tokens (`tixolve_access_token`) are managed exclusively as server-side HttpOnly cookies with `Domain=.tixolve.com`. The browser transmits credentials automatically via `withCredentials: true`. Bearer tokens are completely absent from `localStorage`, `sessionStorage`, and Redux state.
+2. **Server-Authoritative Route Protection**:
+   `DashboardLayout` validates session authenticity against `GET /api/user` before unblocking protected routes. Client-side user metadata in `tixolve_access_user` provides optimistic UI rendering only and is never accepted as authoritative proof.
+3. **Throttled Background Polling**:
+   TanStack Query handles real-time revalidation with ticket queue polling set to 10 seconds and active ticket details set to 5 seconds. Polling automatically pauses when tabs are hidden (`refetchIntervalInBackground: false`) and resumes on focus.
+4. **Narrowed Cross-Origin Opener Policy**:
+   `next.config.ts` enforces `Cross-Origin-Opener-Policy: same-origin-allow-popups` to support Google OAuth popups while preserving browser-level cross-origin isolation.
+5. **Role-Prefixed Endpoints**:
    API hooks inspect `user.role` from Redux and automatically prepend role routes (`/owner`, `/manager`, `/agent`, or `/shared`) to backend requests.
-4. **AI Configuration Gatekeeper**:
+6. **AI Configuration Gatekeeper**:
    If an authenticated user has `is_ai_configured === false`, restricted modules (`/tickets`, `/customers`, `/ai_automation`, `/knowledge_base`) suppress page content and trigger a blocking configuration modal.
+
 
 ---
 

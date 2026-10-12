@@ -13,7 +13,7 @@ const API_HOST =
   process.env.NEXT_PUBLIC_BASE_URL ||
   (process.env.NODE_ENV === "production"
     ? "https://api.tixolve.com"
-    : "http://illogri-issue.test");
+    : "http://localhost:8000");
 
 const BASE_URL = `${API_HOST}/api`;
 ```
@@ -21,7 +21,7 @@ const BASE_URL = `${API_HOST}/api`;
 ### Resolution Priority Order
 1. `process.env.NEXT_PUBLIC_BASE_URL` (Always takes precedence if defined)
 2. `https://api.tixolve.com` (When `NODE_ENV === "production"`)
-3. `http://illogri-issue.test` (Local development fallback)
+3. `http://localhost:8000` (Local development fallback)
 
 All endpoint paths are appended to `${BASE_URL}`.
 
@@ -36,8 +36,9 @@ The application implements a dual Axios client architecture:
 | **Location** | `src/hooks/axios/useAxiosPublic.tsx` | `src/hooks/axios/useAxiosPrivate.tsx` |
 | **Timeout** | `10000ms` (10 seconds) | `30000ms` (30 seconds for AI & file uploads) |
 | **Credentials** | `withCredentials: true` | `withCredentials: true` |
-| **Default Headers** | `Content-Type: application/json`<br>`Accept: application/json`<br>`ngrok-skip-browser-warning: "69420"` | `Content-Type: application/json`<br>`Accept: application/json`<br>`ngrok-skip-browser-warning: "69420"` |
-| **Request Interceptor** | Pass-through | Checks `store.getState().auth.token` and attaches `Authorization: Bearer <token>` as a legacy fallback. |
+| **Default Headers** | `Content-Type: application/json`<br>`Accept: application/json` | `Content-Type: application/json`<br>`Accept: application/json` |
+| **Conditional Headers**| `ngrok-skip-browser-warning: "true"` only if `NEXT_PUBLIC_ENABLE_NGROK_WARNING_SKIP="true"` | `ngrok-skip-browser-warning: "true"` only if `NEXT_PUBLIC_ENABLE_NGROK_WARNING_SKIP="true"` |
+| **Request Interceptor** | Pass-through | Pass-through (pure HttpOnly cookie session architecture) |
 | **Response Interceptor** | Network error detection, Laravel 422 error object formatting. | Global status code handling (401, 403, 400, 422, 404, 429, 500), Sonner toast dispatch, custom event emission for AI gating. |
 
 ---
@@ -47,23 +48,18 @@ The application implements a dual Axios client architecture:
 Authentication is implemented via a **server-managed HttpOnly cookie architecture**:
 
 1. **HttpOnly Cookie Primary Transport**:
-   - The backend sets an HttpOnly cookie named `tixolve_access_token` upon successful login.
+   - The backend sets an HttpOnly, Secure cookie named `tixolve_access_token` with `Domain=.tixolve.com` upon successful login.
    - `withCredentials: true` instructs the browser to attach this cookie automatically on cross-origin requests.
    - **Frontend Inaccessibility**: Client-side JavaScript cannot read, inspect, or clear the `tixolve_access_token` cookie.
    - **Absence in Client Storage**: Tokens are completely absent from `localStorage`, `sessionStorage`, client-accessible cookies, and Redux state.
-2. **Legacy Bearer Token Fallback**:
-   - The request interceptor in `useAxiosPrivate.tsx` includes:
-     ```typescript
-     const token = store.getState().auth.token;
-     if (token) {
-       config.headers.Authorization = `Bearer ${token}`;
-     }
-     ```
-   - In standard operation, `state.token` is `null` because authentication is maintained by cookies. This interceptor remains strictly as a legacy fallback.
+2. **Pure Cookie Session Architecture**:
+   - Redux `authSlice` does not maintain a `token` state.
+   - Request interceptors in `useAxiosPrivate.tsx` do not inject `Authorization: Bearer` headers. All authentication relies on browser-managed cookies.
 3. **Session Expiry (401) Handling**:
    - When any private request receives `401 Unauthorized`:
      1. Dispatches `logout()` to Redux (clearing user metadata and the `tixolve_access_user` cookie).
-     2. Checks if the user is on a public page (`/auth/login`, `/auth/register`, `/auth/register/email_verification`). If not, displays toast `"Session expired. Please log in again."` and redirects:
+     2. Checks if the user is on a public page (`/auth/login`, `/auth/register`, `/auth/register/email_verification`, `/auth/register/plans`, `/auth/forgot_password`, `/auth/callback`, `/auth/accept-invitation`, `/auth/accept-agent-invitation`).
+     3. If on a protected route, displays toast `"Session expired. Please log in again."` and redirects:
         ```typescript
         window.location.href = `/auth/login?callbackUrl=${encodeURIComponent(currentPath)}`;
         ```

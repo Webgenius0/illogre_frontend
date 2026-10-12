@@ -39,7 +39,7 @@ The application resolves the backend API host in `src/hooks/axios/useAxiosPublic
 
 1. `process.env.NEXT_PUBLIC_BASE_URL` (Always takes precedence if defined)
 2. `https://api.tixolve.com` (Default when `process.env.NODE_ENV === "production"`)
-3. `http://illogri-issue.test` (Default when running in local development mode)
+3. `http://localhost:8000` (Default when running in local development mode)
 
 The target request URL is constructed as `${API_HOST}/api`.
 
@@ -47,9 +47,10 @@ The target request URL is constructed as `${API_HOST}/api`.
 
 | Variable Name | Required | Default / Fallback | Purpose |
 | :--- | :---: | :--- | :--- |
-| `NEXT_PUBLIC_BASE_URL` | **Yes** | Dev: `http://illogri-issue.test`<br>Prod: `https://api.tixolve.com` | Base URL of the backend Laravel API host (without `/api` suffix). |
+| `NEXT_PUBLIC_BASE_URL` | **Yes** | Dev: `http://localhost:8000`<br>Prod: `https://api.tixolve.com` | Base URL of the backend Laravel API host (without `/api` suffix). |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Optional | `undefined` | Google OAuth Web Client ID obtained from Google Cloud Console. |
 | `NEXT_PUBLIC_GOOGLE_REDIRECT_URI`| Optional | `${origin}/auth/callback` | Authorized redirect URI configured in Google Cloud OAuth credentials. |
+| `NEXT_PUBLIC_ENABLE_NGROK_WARNING_SKIP` | No | `false` | Optional development flag to inject ngrok skip header during tunnel testing. |
 
 ### Safe `.env.example` Template
 
@@ -105,20 +106,47 @@ npm run start
 
 ---
 
-## 5. Verified Command Execution Results
+## 5. Connecting Local Frontend to Local Backend
+
+To run full end-to-end authentication and ticket flows on a local developer machine:
+
+1. **Start the Laravel API Server**:
+   ```bash
+   cd /path/to/illogry_backend
+   php artisan serve --port=8000
+   ```
+2. **Configure Frontend Environment (`.env`)**:
+   ```env
+   NEXT_PUBLIC_BASE_URL=http://localhost:8000
+   ```
+3. **Verify Backend CORS Configuration**:
+   Ensure `config/cors.php` in the Laravel backend allows credentials from `http://localhost:3000`:
+   ```php
+   'allowed_origins' => ['http://localhost:3000'],
+   'supports_credentials' => true,
+   ```
+4. **Start the Next.js Frontend Server**:
+   ```bash
+   npm run dev
+   ```
+   Navigate to [http://localhost:3000](http://localhost:3000).
+
+---
+
+## 6. Verified Command Execution Results
 
 Actual CLI checks executed in this repository:
 
 | Command | Status | Verified Result & Diagnostic Findings |
 | :--- | :---: | :--- |
 | `npx tsc --noEmit` | **PASSED** | 0 errors. TypeScript compiler completed cleanly with strict mode enabled. |
-| `npm run build` | **PASSED** | Compiled successfully with Turbopack in 6.9s. TypeScript checks finished in 7.0s. Generated 27 static pages and 6 dynamic server routes. Next.js 16 standalone bundle generated successfully. |
-| `npm run lint` | **FAILED** | Exit code 1: **280 problems (184 errors, 96 warnings)**. The majority of failures stem from `@typescript-eslint/no-explicit-any` across API service hooks and minor unused variables. |
-| `npm test` | **N/A** | **No test script exists** in `package.json`. No automated test suite is installed. |
+| `npm run build` | **PASSED** | Compiled successfully with Turbopack in 11.2s. TypeScript checks finished in 7.2s. Generated 28 static pages and 6 dynamic server routes. Next.js 16 standalone bundle generated successfully. |
+| `npm run lint` | **FAILED** | Exit code 1: **279 problems (183 errors, 96 warnings)**. The failures stem from pre-existing `@typescript-eslint/no-explicit-any` across legacy API hooks and minor unused variables. Rules are strictly preserved without artificial suppressions. |
+| `npm test` | **N/A** | **No test script exists** in `package.json` (Exit code 1: `Missing script: "test"`). |
 
 ---
 
-## 6. Common Setup & Build Problems
+## 7. Common Setup & Build Problems
 
 ### 1. Cross-Origin Cookie Session Failures
 - **Symptom**: Login succeeds, but dashboard views redirect immediately back to `/auth/login`.

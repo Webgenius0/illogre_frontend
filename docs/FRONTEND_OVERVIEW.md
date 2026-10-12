@@ -112,7 +112,8 @@ The frontend uses Next.js App Router with client-side hydration:
    - If the user navigates to restricted routes (`/tickets`, `/customers`, `/ai_automation`, `/knowledge_base`) and `is_ai_configured === false`, content rendering is suppressed and `AiConfigModal` displays.
 
 4. **Continuous Synchronization**:
-   - Real-time ticket updates are simulated via background short-polling (1-second intervals for the ticket list, 5-second intervals for active ticket details).
+   - Real-time ticket updates use short-polling with TanStack Query (10-second intervals for the ticket queue, 5-second intervals for active ticket details).
+   - Background throttling (`refetchIntervalInBackground: false`) automatically pauses polling when browser tabs are hidden or inactive, immediately revalidating on window focus.
    - Global notifications poll every 30 seconds (`/api/notifications`).
 
 ---
@@ -125,23 +126,24 @@ All communication between the frontend and backend conforms to the following sec
    - Standard RESTful HTTP/HTTPS requests over JSON (`Accept: application/json`, `Content-Type: application/json`).
    - File uploads (avatars, workspace logos, knowledge base documents) use `multipart/form-data`.
 2. **HttpOnly Cookie Authentication**:
-   - The primary authentication token (`tixolve_access_token`) is issued by the Laravel backend as an **HttpOnly cookie**.
+   - The primary authentication token (`tixolve_access_token`) is issued by the Laravel backend as an **HttpOnly, Secure cookie** with `Domain=.tixolve.com`.
    - Because the cookie is HttpOnly, frontend JavaScript **cannot read, manipulate, or clear it directly**.
    - Requests configure `withCredentials: true`, instructing the browser to attach the session cookie automatically on cross-origin requests.
-   - **Logout**: Because client JavaScript cannot clear HttpOnly cookies, logout **must call the backend endpoint** (`POST /api/auth/logout`) so the server invalidates the session and sends an expired `Set-Cookie` header.
+   - **Logout**: Because client JavaScript cannot clear HttpOnly cookies, logout **calls the backend endpoint** (`POST /api/auth/logout`) so the server invalidates the session and sends an expired `Set-Cookie` header.
 3. **Storage Security Verification**:
    - Authentication tokens are **completely absent** from `localStorage`, `sessionStorage`, client-readable cookies, and Redux state.
-   - In `authSlice.ts`, `state.token` is explicitly set to `null`.
+   - Redux `authSlice.ts` maintains no `token` property in state.
    - The only browser cookie written by frontend JavaScript is `tixolve_access_user`, which contains non-sensitive serialized user metadata (name, email, role) to avoid blank profile headers during initial mount.
+   - `DashboardLayout` validates session proof against `GET /api/user` before rendering protected dashboard children.
 4. **CORS & Domain Requirements**:
    - Enabling `withCredentials: true` on the frontend is necessary but **not sufficient** for security. The backend must configure:
      * `Access-Control-Allow-Credentials: true`
      * `Access-Control-Allow-Origin: <exact_frontend_origin>` (Wildcard `*` is rejected by browsers when credentials are included)
-     * Cookies must specify `SameSite=None; Secure` (requiring HTTPS) when frontend and backend are hosted on different domains, or a shared root domain scope (e.g., `.tixolve.com`) for subdomains.
+     * Cookies must specify `SameSite=None; Secure` (requiring HTTPS) when frontend and backend are hosted on different domains, or a shared root domain scope (`Domain=.tixolve.com`) for subdomains (`app.tixolve.com` and `api.tixolve.com`).
 5. **Base URL Resolution Priority**:
    - Primary: `process.env.NEXT_PUBLIC_BASE_URL`
    - Production Fallback: `https://api.tixolve.com`
-   - Local Fallback: `http://illogri-issue.test`
+   - Local Fallback: `http://localhost:8000`
    - Target prefix: `${API_HOST}/api`
 6. **Role-Based Endpoint Prefixing**:
    - The Laravel backend organizes routes by actor roles. The frontend dynamically prefixes endpoints according to `user.role`:
